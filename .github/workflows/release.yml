@@ -1,6 +1,11 @@
 name: Release binaries
 
 on:
+  push:
+    branches:
+      - develop
+    paths:
+      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       tag:
@@ -10,6 +15,9 @@ on:
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || 'v0.2.1' }}
 
 jobs:
   unix:
@@ -34,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -56,7 +64,7 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" dist/${{ matrix.asset }}.tar.gz dist/${{ matrix.asset }}.tar.gz.sha256 --clobber
+        run: gh release upload "${{ env.RELEASE_TAG }}" dist/${{ matrix.asset }}.tar.gz dist/${{ matrix.asset }}.tar.gz.sha256 --clobber
 
   windows:
     name: inbox-windows-x86_64
@@ -64,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
@@ -83,4 +91,4 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" dist\inbox-windows-x86_64.zip dist\inbox-windows-x86_64.zip.sha256 --clobber
+        run: gh release upload "${{ env.RELEASE_TAG }}" dist\inbox-windows-x86_64.zip dist\inbox-windows-x86_64.zip.sha256 --clobber

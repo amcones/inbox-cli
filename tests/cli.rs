@@ -83,9 +83,69 @@ impl Drop for Inbox {
 fn empty_inbox_does_not_create_files() {
     let inbox = Inbox::new();
     assert_eq!(inbox.ok(&[]), "");
+    assert_eq!(inbox.ok(&["search", "anything"]), "");
     assert_eq!(inbox.ok(&["tags"]), "");
     assert!(inbox.ok(&["doctor"]).contains("0 条记录"));
     assert!(!inbox.0.exists());
+}
+
+#[test]
+fn full_text_search_supports_case_tags_sorting_and_limits_without_tracking_views() {
+    let inbox = Inbox::new();
+    let older = inbox.add_at(
+        "Rust CLI\n第二行包含阅读模式",
+        &["产品", "开发"],
+        "2026-09-28T09:00:00+08:00[Asia/Shanghai]",
+    );
+    inbox.add_at(
+        "用 RUST 写另一个工具",
+        &["开发"],
+        "2026-09-29T09:00:00+08:00[Asia/Shanghai]",
+    );
+    inbox.add_at(
+        "不相关记录",
+        &["产品"],
+        "2026-09-29T10:00:00+08:00[Asia/Shanghai]",
+    );
+
+    let rust = inbox.ok(&["search", "rust"]);
+    assert_eq!(rust.lines().count(), 2);
+    assert!(rust.contains("Rust CLI"));
+    assert!(rust.contains("用 RUST"));
+    assert_eq!(
+        inbox.ok(&["search", "rust", "-t", "产品"]).lines().count(),
+        1
+    );
+    assert!(
+        inbox
+            .ok(&["search", "阅读模式", "-t", "产品"])
+            .contains(older.short_id())
+    );
+    assert_eq!(
+        inbox
+            .ok(&["search", "rust", "-t", "产品", "-t", "missing", "--any"])
+            .lines()
+            .count(),
+        1
+    );
+    assert_eq!(inbox.ok(&["search", "rust", "-n", "1"]).lines().count(), 1);
+    assert_eq!(
+        inbox
+            .ok(&["search", "rust", "--sort", "priority", "-n", "1"])
+            .lines()
+            .count(),
+        1
+    );
+    assert!(!inbox.0.join(".inbox/views.log").exists());
+
+    for args in [
+        &["search"][..],
+        &["search", "   "][..],
+        &["search", "rust", "--any"][..],
+        &["search", "rust", "--no-track"][..],
+    ] {
+        assert_eq!(inbox.run(args).status.code(), Some(2));
+    }
 }
 
 #[test]

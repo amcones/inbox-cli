@@ -111,6 +111,8 @@ def main():
                 ("新增一条", ["-m", "benchmark append", "-t", "idea"]),
                 ("最近 20 条", ["list"]),
                 ("标签筛选 20 条", ["list", "-t", "topic3"]),
+                ("全文搜索 20 条", ["search", "benchmark"]),
+                ("全文搜索无结果", ["search", "__missing__"]),
                 ("优先级 Top-20", ["list", "--sort", "priority"]),
                 ("查看单条并计数", ["show", note_id]),
             ]
@@ -123,7 +125,7 @@ def main():
                 print(line, flush=True)
             run(base + ["doctor"])
     lines += ["", "复现：", "", "```bash", "cargo build --release --locked", "python3 scripts/benchmark.py", "```", "",
-              "首版对 show 和优先级排序执行全库扫描，较大数据集延迟随条数增长；记录路径不扫描历史。"]
+              "无结果或不足 limit 的全文搜索、show 和优先级排序执行全库扫描，较大数据集延迟随条数增长；记录路径不扫描历史。"]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(lines) + "\n")
 

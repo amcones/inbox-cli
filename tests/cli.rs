@@ -33,6 +33,23 @@ impl Inbox {
         );
         String::from_utf8(out.stdout).unwrap()
     }
+    fn run_input(&self, args: &[&str], input: &str) -> Output {
+        let mut child = self
+            .command()
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    }
     fn add_at(&self, text: &str, tags: &[&str], at: &str) -> Note {
         let note = Note::new(
             text.into(),
@@ -905,4 +922,119 @@ fn delete_missing_inbox_does_not_create_it() {
     let inbox = Inbox::new();
     assert!(!inbox.run(&["delete", "abcd"]).status.success());
     assert!(!inbox.0.exists());
+}
+
+#[test]
+fn delete_today_requires_confirmation_and_preserves_other_days() {
+    let inbox = Inbox::new();
+    let old = inbox.add_at("yesterday", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
+    let today_a = inbox.ok(&["-m", "today a"]);
+    let today_b = inbox.ok(&["-m", "today b"]);
+    for id in [&old.meta.id, today_a.trim(), today_b.trim()] {
+        inbox.ok(&["show", id]);
+    }
+
+    for answer in ["no\n", "\n", "YES PLEASE\n"] {
+        let out = inbox.run_input(&["delete", "today"], answer);
+        assert!(out.status.success());
+        assert!(String::from_utf8_lossy(&out.stdout).contains("已取消"));
+        assert!(String::from_utf8_lossy(&out.stderr).contains("2 条灵感"));
+        assert_eq!(inbox.ok(&["list"]).lines().count(), 3);
+    }
+    let out = inbox.run_input(&["delete", "today"], "确认\n");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(String::from_utf8_lossy(&out.stdout).contains("已删除 2 条灵感"));
+    let list = inbox.ok(&["list"]);
+    assert_eq!(list.lines().count(), 1);
+    assert!(list.contains("yesterday"));
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录，1 次浏览"));
+}
+
+#[test]
+fn delete_all_confirmation_and_yes_flag_work_in_both_languages() {
+    let inbox = Inbox::new();
+    inbox.add_at("old", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
+    inbox.ok(&["-m", "new"]);
+    let cancelled = inbox.run_input(&["delete", "all", "--lang", "en"], "n\n");
+    assert!(cancelled.status.success());
+    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Permanently delete 2 notes"));
+    assert!(String::from_utf8_lossy(&cancelled.stdout).contains("Cancelled"));
+    let deleted = inbox.ok(&["delete", "all", "--yes", "--lang", "en"]);
+    assert_eq!(deleted, "Deleted 2 notes\n");
+    assert!(inbox.ok(&["list"]).is_empty());
+    assert!(inbox.ok(&["doctor"]).contains("0 条记录，0 次浏览"));
+
+    inbox.ok(&["-m", "one more"]);
+    assert_eq!(inbox.ok(&["delete", "all", "-y"]), "已删除 1 条灵感\n");
+    assert_eq!(inbox.ok(&["delete", "all", "-y"]), "没有可删除的灵感\n");
+}
+
+#[test]
+fn bulk_delete_option_validation_is_strict() {
+    let inbox = Inbox::new();
+    inbox.ok(&["-m", "keep"]);
+    for args in [
+        vec!["delete", "all", "--no-track"],
+        vec!["delete", "today", "-t", "x"],
+        vec!["delete", "all", "--limit", "1"],
+        vec!["delete", "abcd", "--yes"],
+        vec!["show", "abcd", "--yes"],
+        vec!["list", "--yes"],
+    ] {
+        assert_eq!(inbox.run(&args).status.code(), Some(2), "{args:?}");
+    }
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
+}
+
+#[test]
+fn multi_day_committed_bulk_delete_recovers_at_each_boundary() {
+    for applied in 0..=3 {
+        let inbox = Inbox::new();
+        let a = inbox.add_at("a", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
+        let b = inbox.add_at("b", &[], "2026-09-29T10:00:00+08:00[Asia/Shanghai]");
+        inbox.ok(&["show", &a.meta.id]);
+        inbox.ok(&["show", &b.meta.id]);
+        let stage = inbox.0.join(".inbox/delete-pending");
+        fs::create_dir(&stage).unwrap();
+        for date in ["2026-09-28", "2026-09-29"] {
+            fs::write(
+                stage.join(format!("day-{date}.next")),
+                format!("# {date}\n\n"),
+            )
+            .unwrap();
+        }
+        fs::write(stage.join("views.next"), "").unwrap();
+        fs::write(
+            stage.join("manifest.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "dates":["2026-09-28", "2026-09-29"], "ids":[a.meta.id, b.meta.id]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        if applied >= 1 {
+            fs::rename(
+                stage.join("day-2026-09-28.next"),
+                inbox.0.join("2026/09/2026-09-28.md"),
+            )
+            .unwrap();
+        }
+        if applied >= 2 {
+            fs::rename(
+                stage.join("day-2026-09-29.next"),
+                inbox.0.join("2026/09/2026-09-29.md"),
+            )
+            .unwrap();
+        }
+        if applied >= 3 {
+            fs::rename(stage.join("views.next"), inbox.0.join(".inbox/views.log")).unwrap();
+        }
+        assert!(inbox.ok(&["list"]).is_empty());
+        assert!(inbox.ok(&["doctor"]).contains("0 条记录，0 次浏览"));
+        assert!(!stage.exists());
+    }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.2 — 2026-09-29
+
+- Bundle the IANA time-zone database on Windows so named zones and local-time operations work without an external zoneinfo installation.
+- Publish native binaries for macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64 with SHA-256 checksums.
+- Test every pull request on all five release platforms and verify the Rust 1.89 minimum supported version.
+- Validate release tags against `Cargo.toml` and this changelog before publishing.
+- Publish releases as drafts and make them public only after every binary has uploaded successfully.
+- Document binary installation and current platform support.
+
 ## 0.2.1 — 2026-09-29
 
 - Add `inbox delete today` with an explicit confirmation prompt.

@@ -9,6 +9,14 @@ permissions:
   contents: read
 
 jobs:
+  msrv:
+    name: Rust 1.89
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.89.0
+      - run: cargo check --all-targets --locked
+
   build-and-test:
     name: ${{ matrix.name }}
     strategy:

@@ -84,29 +84,30 @@ fn run(cli: Cli) -> Result<()> {
                 None => Vec::new(),
             };
             for note in notes {
-                let clean = terminal_text(&note.content, false);
-                let mut chars = clean.chars();
-                let mut summary: String = chars.by_ref().take(80).collect();
-                if chars.next().is_some() {
-                    summary.push('…');
-                }
-                let tags = note
-                    .meta
-                    .tags
-                    .iter()
-                    .map(|t| format!("#{}", terminal_text(t, false)))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                writeln!(
-                    out,
-                    "{}  {} {}  {}{}{}",
-                    note.short_id(),
-                    &note.meta.created[..10],
-                    &note.meta.created[11..19],
-                    summary,
-                    if tags.is_empty() { "" } else { "  " },
-                    tags
-                )?;
+                write_summary(&mut out, &note)?;
+            }
+        }
+        Command::Search {
+            query: text,
+            tags,
+            any,
+            sort,
+            limit,
+        } => {
+            let notes = match Store::open(&root, false)? {
+                Some(store) => query::search(
+                    &store,
+                    &text,
+                    &tags,
+                    any,
+                    sort,
+                    limit,
+                    jiff::Timestamp::now(),
+                )?,
+                None => Vec::new(),
+            };
+            for note in notes {
+                write_summary(&mut out, &note)?;
             }
         }
         Command::Show { prefix, track } => {
@@ -229,6 +230,33 @@ fn run(cli: Cli) -> Result<()> {
         Command::Help | Command::Version => unreachable!(),
     }
     out.flush()?;
+    Ok(())
+}
+
+fn write_summary(out: &mut impl Write, note: &Note) -> Result<()> {
+    let clean = terminal_text(&note.content, false);
+    let mut chars = clean.chars();
+    let mut summary: String = chars.by_ref().take(80).collect();
+    if chars.next().is_some() {
+        summary.push('…');
+    }
+    let tags = note
+        .meta
+        .tags
+        .iter()
+        .map(|tag| format!("#{}", terminal_text(tag, false)))
+        .collect::<Vec<_>>()
+        .join(" ");
+    writeln!(
+        out,
+        "{}  {} {}  {}{}{}",
+        note.short_id(),
+        &note.meta.created[..10],
+        &note.meta.created[11..19],
+        summary,
+        if tags.is_empty() { "" } else { "  " },
+        tags
+    )?;
     Ok(())
 }
 

@@ -9,6 +9,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox -m '内容' [-t 标签]...       记录灵感（-m - 从标准输入读取）
   inbox [list] [-t 标签]...         最近的灵感，默认 20 条
   inbox list --sort priority       按隐藏优先级排序
+  inbox search <关键词> [-t 标签]... 搜索完整正文
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
   inbox delete <ID前缀>            删除灵感及其浏览记录
   inbox delete today [--yes]       确认后删除今天的全部灵感
@@ -29,7 +30,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   -h, --help            显示帮助
   -V, --version         显示版本
 
-列表不计浏览次数；正文里的 #文字 不会自动成为标签。
+列表和搜索不计浏览次数；搜索不区分大小写；正文里的 #文字不会自动成为标签。
 ";
 
 pub const HELP_EN: &str = "inbox — Capture ideas in local Markdown files
@@ -38,6 +39,7 @@ Usage:
   inbox -m 'content' [-t tag]...    Add an idea (-m - reads stdin)
   inbox [list] [-t tag]...         Recent ideas, default 20
   inbox list --sort priority       Sort by hidden priority
+  inbox search <query> [-t tag]... Search complete note bodies
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
   inbox delete <ID-prefix>         Delete an idea and its view history
   inbox delete today [--yes]       Delete today's ideas after confirmation
@@ -58,7 +60,7 @@ Options:
   -h, --help             Show help
   -V, --version          Show version
 
-Lists do not count as views. #words in content do not become tags.
+Lists and searches do not count as views. Search is case-insensitive. #words in content do not become tags.
 ";
 
 pub fn help() -> &'static str {
@@ -78,6 +80,13 @@ pub enum Command {
         tags: Vec<String>,
     },
     List {
+        tags: Vec<String>,
+        any: bool,
+        sort: Sort,
+        limit: usize,
+    },
+    Search {
+        query: String,
         tags: Vec<String>,
         any: bool,
         sort: Sort,
@@ -257,6 +266,37 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                     .into());
                 }
                 Command::List {
+                    tags,
+                    any,
+                    sort: sort.unwrap_or(Sort::Time),
+                    limit: limit.unwrap_or(20),
+                }
+            }
+            "search" if positional.len() == 2 => {
+                if no_track || yes {
+                    return Err(crate::i18n::text(
+                        "--no-track 和 --yes 不能用于 search",
+                        "--no-track and --yes are not valid with search",
+                    )
+                    .into());
+                }
+                if any && tags.is_empty() {
+                    return Err(crate::i18n::text(
+                        "--any 需要至少一个 -t 标签",
+                        "--any requires at least one -t tag",
+                    )
+                    .into());
+                }
+                let query = positional.pop().unwrap();
+                if query.trim().is_empty() {
+                    return Err(crate::i18n::text(
+                        "搜索关键词不能为空",
+                        "The search query must not be empty",
+                    )
+                    .into());
+                }
+                Command::Search {
+                    query,
                     tags,
                     any,
                     sort: sort.unwrap_or(Sort::Time),

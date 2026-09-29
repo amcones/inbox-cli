@@ -38,6 +38,31 @@ pub fn list(
     limit: usize,
     now: Timestamp,
 ) -> Result<Vec<Note>> {
+    select(store, tags, any, sort, limit, now, None)
+}
+
+pub fn search(
+    store: &Store,
+    query: &str,
+    tags: &[String],
+    any: bool,
+    sort: Sort,
+    limit: usize,
+    now: Timestamp,
+) -> Result<Vec<Note>> {
+    let query = query.to_lowercase();
+    select(store, tags, any, sort, limit, now, Some(&query))
+}
+
+fn select(
+    store: &Store,
+    tags: &[String],
+    any: bool,
+    sort: Sort,
+    limit: usize,
+    now: Timestamp,
+    query: Option<&str>,
+) -> Result<Vec<Note>> {
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -64,7 +89,9 @@ pub fn list(
             }
         }
         store.scan_file(&path, |note| {
-            if note.matches(tags, any) {
+            if note.matches(tags, any)
+                && query.is_none_or(|query| note.content.to_lowercase().contains(query))
+            {
                 let score = match sort {
                     Sort::Time => 0.0,
                     Sort::Priority => ranking::score(

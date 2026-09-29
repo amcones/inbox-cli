@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add case-insensitive full-text body search with tag filters, time/priority sorting, and result limits.
+
 ## 0.2.2 — 2026-09-29
 
 - Bundle the IANA time-zone database on Windows so named zones and local-time operations work without an external zoneinfo installation.

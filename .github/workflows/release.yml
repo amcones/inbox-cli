@@ -1,19 +1,29 @@
 name: Release binaries
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing Git tag and release to build
-        required: true
-        default: v0.2.1
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
 
 jobs:
+  verify-tag:
+    name: Tag is on main
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify tagged commit belongs to main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
   unix:
     name: ${{ matrix.asset }}
+    needs: verify-tag
     strategy:
       fail-fast: false
       matrix:
@@ -33,14 +43,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
-      - name: Verify native binary
+      - name: Verify binary
         run: target/${{ matrix.target }}/release/inbox --version
       - name: Package
         shell: bash
@@ -53,18 +61,20 @@ jobs:
           else
             (cd dist && shasum -a 256 ${{ matrix.asset }}.tar.gz > ${{ matrix.asset }}.tar.gz.sha256)
           fi
-      - name: Upload release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" dist/${{ matrix.asset }}.tar.gz dist/${{ matrix.asset }}.tar.gz.sha256 --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            dist/${{ matrix.asset }}.tar.gz
+            dist/${{ matrix.asset }}.tar.gz.sha256
+          if-no-files-found: error
 
   windows:
     name: inbox-windows-x86_64
+    needs: verify-tag
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
@@ -80,7 +90,28 @@ jobs:
           Compress-Archive -Path dist\inbox-windows-x86_64 -DestinationPath dist\inbox-windows-x86_64.zip
           $hash = (Get-FileHash dist\inbox-windows-x86_64.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  inbox-windows-x86_64.zip" | Set-Content -NoNewline dist\inbox-windows-x86_64.zip.sha256
-      - name: Upload release assets
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inbox-windows-x86_64
+          path: |
+            dist/inbox-windows-x86_64.zip
+            dist/inbox-windows-x86_64.zip.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs:
+      - unix
+      - windows
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release and upload binaries
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" dist\inbox-windows-x86_64.zip dist\inbox-windows-x86_64.zip.sha256 --clobber
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" dist/*

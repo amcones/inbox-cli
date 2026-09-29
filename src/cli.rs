@@ -11,6 +11,8 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox list --sort priority       按隐藏优先级排序
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
   inbox delete <ID前缀>            删除灵感及其浏览记录
+  inbox delete today [--yes]       确认后删除今天的全部灵感
+  inbox delete all [--yes]         确认后删除全部灵感
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
 
@@ -21,6 +23,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
       --any             多标签匹配任意一个（默认全部匹配）
       --sort <方式>     time（默认）或 priority
       --no-track        show 不增加浏览次数
+  -y, --yes             跳过批量删除确认
       --dir <目录>      数据目录（优先于 INBOX_DIR，默认 ~/inbox）
       --lang <语言>     auto（默认）、zh（中文）或 en（英文）
   -h, --help            显示帮助
@@ -37,6 +40,8 @@ Usage:
   inbox list --sort priority       Sort by hidden priority
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
   inbox delete <ID-prefix>         Delete an idea and its view history
+  inbox delete today [--yes]       Delete today's ideas after confirmation
+  inbox delete all [--yes]         Delete all ideas after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
 
@@ -47,6 +52,7 @@ Options:
       --any              Match any supplied tag (default: all)
       --sort <order>     time (default) or priority
       --no-track         Do not count this show as a view
+  -y, --yes              Skip bulk-delete confirmation
       --dir <directory>  Overrides INBOX_DIR; default ~/inbox
       --lang <language>  auto (default), zh (Chinese), or en (English)
   -h, --help             Show help
@@ -82,12 +88,20 @@ pub enum Command {
         track: bool,
     },
     Delete {
-        prefix: String,
+        target: DeleteTarget,
+        yes: bool,
     },
     Tags,
     Doctor,
     Help,
     Version,
+}
+
+#[derive(Debug)]
+pub enum DeleteTarget {
+    Id(String),
+    Today,
+    All,
 }
 
 #[derive(Debug)]
@@ -106,6 +120,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     let mut sort = None;
     let mut limit = None;
     let mut no_track = false;
+    let mut yes = false;
     let mut lang_seen = false;
     while let Some(arg) = parser.next()? {
         match arg {
@@ -170,6 +185,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             Short('t') | Long("tag") => tags.push(parser.value()?.string()?),
             Long("any") => any = true,
             Long("no-track") => no_track = true,
+            Short('y') | Long("yes") => yes = true,
             Short('n') | Long("limit") => {
                 if limit.is_some() {
                     return Err(crate::i18n::text(
@@ -215,7 +231,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     let tags = normalize_tags(tags)?;
     let list_options = any || sort.is_some() || limit.is_some();
     let command = if let Some(content) = message {
-        if !positional.is_empty() || list_options || no_track {
+        if !positional.is_empty() || list_options || no_track || yes {
             return Err(crate::i18n::text(
                 "-m 不能与子命令、列表选项或 --no-track 同时使用",
                 "-m cannot be combined with subcommands, list options, or --no-track",
@@ -226,7 +242,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     } else {
         match positional.first().map(String::as_str).unwrap_or("list") {
             "list" if positional.len() <= 1 => {
-                if no_track {
+                if no_track || yes {
                     return Err(crate::i18n::text(
                         "--no-track 仅用于 show",
                         "--no-track is only valid with show",
@@ -255,17 +271,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                     )
                     .into());
                 }
-                let prefix = positional.pop().unwrap().to_ascii_lowercase();
-                if prefix.len() < 4
-                    || prefix.len() > 36
-                    || !prefix.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
-                {
-                    return Err(crate::i18n::text(
-                        "ID 前缀需为 4–36 个十六进制字符或连字符",
-                        "An ID prefix must contain 4–36 hexadecimal characters or hyphens",
-                    )
-                    .into());
-                }
+                let value = positional.pop().unwrap().to_ascii_lowercase();
                 if positional[0] == "delete" {
                     if no_track {
                         return Err(crate::i18n::text(
@@ -274,16 +280,39 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                         )
                         .into());
                     }
-                    Command::Delete { prefix }
+                    let target = match value.as_str() {
+                        "today" => DeleteTarget::Today,
+                        "all" => DeleteTarget::All,
+                        _ => {
+                            validate_id_prefix(&value)?;
+                            if yes {
+                                return Err(crate::i18n::text(
+                                    "--yes 仅用于 delete today/all",
+                                    "--yes is only valid with delete today/all",
+                                )
+                                .into());
+                            }
+                            DeleteTarget::Id(value)
+                        }
+                    };
+                    Command::Delete { target, yes }
                 } else {
+                    if yes {
+                        return Err(crate::i18n::text(
+                            "--yes 仅用于 delete today/all",
+                            "--yes is only valid with delete today/all",
+                        )
+                        .into());
+                    }
+                    validate_id_prefix(&value)?;
                     Command::Show {
-                        prefix,
+                        prefix: value,
                         track: !no_track,
                     }
                 }
             }
             "tags" | "doctor" if positional.len() == 1 => {
-                if list_options || no_track || !tags.is_empty() {
+                if list_options || no_track || yes || !tags.is_empty() {
                     return Err(crate::i18n::text(
                         "该子命令不接受列表、标签或浏览选项",
                         "This subcommand does not accept list, tag, or tracking options",
@@ -306,6 +335,20 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
         }
     };
     Ok(Cli { dir, command })
+}
+
+fn validate_id_prefix(prefix: &str) -> Result<()> {
+    if prefix.len() < 4
+        || prefix.len() > 36
+        || !prefix.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
+    {
+        return Err(crate::i18n::text(
+            "ID 前缀需为 4–36 个十六进制字符或连字符",
+            "An ID prefix must contain 4–36 hexadecimal characters or hyphens",
+        )
+        .into());
+    }
+    Ok(())
 }
 
 pub fn data_dir(explicit: Option<PathBuf>) -> Result<PathBuf> {

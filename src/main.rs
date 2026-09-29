@@ -1,6 +1,6 @@
 use inbox::{
     Result,
-    cli::{self, Cli, Command},
+    cli::{self, Cli, Command, DeleteTarget},
     deletion, i18n,
     model::{MAX_CONTENT_BYTES, Note, terminal_text},
     query,
@@ -143,13 +143,65 @@ fn run(cli: Cli) -> Result<()> {
                 })?;
             }
         }
-        Command::Delete { prefix } => {
+        Command::Delete { target, yes } => {
             if !root.try_exists()? {
                 return Err(i18n::text("inbox 为空", "The inbox is empty").into());
             }
-            let store = Store::open(&root, true)?.unwrap();
-            let id = deletion::delete(&store, &prefix)?;
-            writeln!(out, "{}", inbox::message!("已删除 {id}", "Deleted {id}"))?;
+            match target {
+                DeleteTarget::Id(prefix) => {
+                    let store = Store::open(&root, true)?.unwrap();
+                    let plan = deletion::plan_id(&store, &prefix)?;
+                    let id = plan.ids[0].clone();
+                    deletion::execute(&store, &plan)?;
+                    writeln!(out, "{}", inbox::message!("已删除 {id}", "Deleted {id}"))?;
+                }
+                target @ (DeleteTarget::Today | DeleteTarget::All) => {
+                    let (plan, label) = {
+                        let store = Store::open(&root, false)?.unwrap();
+                        match target {
+                            DeleteTarget::Today => {
+                                let date = jiff::Timestamp::now()
+                                    .to_zoned(jiff::tz::TimeZone::try_system()?)
+                                    .strftime("%Y-%m-%d")
+                                    .to_string();
+                                (
+                                    deletion::plan_date(&store, &date)?,
+                                    inbox::message!("今天（{date}）", "today ({date})"),
+                                )
+                            }
+                            DeleteTarget::All => (
+                                deletion::plan_all(&store)?,
+                                i18n::text("全部", "all").to_owned(),
+                            ),
+                            DeleteTarget::Id(_) => unreachable!(),
+                        }
+                    };
+                    if plan.ids.is_empty() {
+                        writeln!(
+                            out,
+                            "{}",
+                            inbox::message!("没有可删除的灵感", "No notes to delete")
+                        )?;
+                    } else if yes || confirm_delete(&label, plan.ids.len())? {
+                        let store = Store::open(&root, true)?.unwrap();
+                        let count = deletion::execute(&store, &plan)?;
+                        writeln!(
+                            out,
+                            "{}",
+                            inbox::message!("已删除 {count} 条灵感", "Deleted {count} notes")
+                        )?;
+                    } else {
+                        writeln!(
+                            out,
+                            "{}",
+                            i18n::text(
+                                "已取消，未删除任何灵感",
+                                "Cancelled; no notes were deleted"
+                            )
+                        )?;
+                    }
+                }
+            }
         }
         Command::Tags => {
             if let Some(store) = Store::open(&root, false)? {
@@ -178,4 +230,21 @@ fn run(cli: Cli) -> Result<()> {
     }
     out.flush()?;
     Ok(())
+}
+
+fn confirm_delete(label: &str, count: usize) -> Result<bool> {
+    eprint!(
+        "{}",
+        inbox::message!(
+            "将永久删除{label}的 {count} 条灵感及其浏览记录。输入 yes 确认：",
+            "Permanently delete {count} notes from {label} and their view history. Type yes to confirm: "
+        )
+    );
+    io::stderr().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(
+        matches!(answer.trim().to_ascii_lowercase().as_str(), "yes" | "y")
+            || matches!(answer.trim(), "是" | "确认"),
+    )
 }

@@ -60,6 +60,24 @@ pub fn plan_date(store: &Store, date: &str) -> Result<Plan> {
     Ok(Plan { ids })
 }
 
+pub fn plan_range(store: &Store, date: &str, start_hour: u8, end_hour: u8) -> Result<Plan> {
+    let mut ids = Vec::new();
+    for path in store.day_files()? {
+        if path.file_stem().and_then(|s| s.to_str()) != Some(date) {
+            continue;
+        }
+        store.scan_file(&path, |note| {
+            let hour = note.meta.created[11..13].parse::<u8>()?;
+            if hour >= start_hour && hour < end_hour {
+                ids.push(note.meta.id);
+            }
+            Ok(())
+        })?;
+        break;
+    }
+    Ok(Plan { ids })
+}
+
 pub fn plan_all(store: &Store) -> Result<Plan> {
     let mut ids = Vec::new();
     for path in store.day_files()? {

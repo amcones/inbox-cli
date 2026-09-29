@@ -4,14 +4,38 @@
 
 ## 安装
 
-需要 Rust 1.89 或更新版本。当前已在 macOS Apple Silicon 实测；已配置 Linux/macOS CI，但 Linux 尚未在本次开发中实测。Windows 暂不作为受支持平台。
+推荐从 [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest) 下载对应平台的压缩包。每个压缩包旁都提供同名 `.sha256` 校验文件。
+
+| 系统 | 架构 | 下载文件 | 持续验证 |
+|---|---|---|---|
+| macOS | Apple Silicon / ARM64 | `inbox-macos-aarch64.tar.gz` | 构建、测试、运行检查 |
+| macOS | Intel x86_64 | `inbox-macos-x86_64.tar.gz` | 构建、测试、运行检查 |
+| Linux | ARM64 | `inbox-linux-aarch64.tar.gz` | 构建、测试、运行检查 |
+| Linux | x86_64 | `inbox-linux-x86_64.tar.gz` | 构建、测试、运行检查 |
+| Windows | x86_64 | `inbox-windows-x86_64.zip` | 构建、测试、运行检查 |
+
+macOS 和 Linux 解压后，将 `inbox` 放入 `PATH`：
 
 ```bash
-cd /Users/uli/Code/inbox
-cargo install --path . --locked
+tar -xzf inbox-<平台>.tar.gz
+mkdir -p ~/.local/bin
+install -m 755 inbox-<平台>/inbox ~/.local/bin/inbox
+inbox --version
 ```
 
-确保 `~/.cargo/bin` 在 `PATH` 中。也可以直接构建和使用，无需安装：
+Windows 解压 `inbox-windows-x86_64.zip`，将其中 `inbox.exe` 所在目录加入 `PATH`，然后在 PowerShell 运行：
+
+```powershell
+inbox --version
+```
+
+也可以使用 Rust 1.89 或更新版本从源码安装：
+
+```bash
+cargo install --git https://github.com/amcones/inbox-cli --tag v0.2.2 --locked
+```
+
+确保 `~/.cargo/bin` 在 `PATH` 中。开发者也可以在源码目录直接构建：
 
 ```bash
 cargo build --release --locked
@@ -77,7 +101,7 @@ export INBOX_LANG=en               # 后续命令默认英文
 
 删除使用独占锁，先准备所有受影响日期的 Markdown 和浏览日志，再提交一份恢复清单，最后逐一原子替换文件。若提交后进程中断，下次任意读取/写入命令会先完成整批删除；提交前中断则保留原始数据。恢复目录位于 `.inbox/delete-pending/`，不要手动移除已提交的清单。删除需要同一文件系统上的普通日期目录。
 
-v0.2.1 直接读取 v0.1/v0.2 数据，并兼容恢复 v0.2 已提交的单条删除，无需迁移；请勿同时用旧版程序操作同一个库。
+v0.2.2 直接读取 v0.1/v0.2 数据，并兼容恢复 v0.2 已提交的单条删除，无需迁移；请勿同时用旧版程序操作同一个库。
 
 ## 数据和备份
 

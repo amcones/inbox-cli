@@ -15,6 +15,8 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
   inbox delete <ID前缀>            将灵感移入回收站
   inbox delete today [--yes]       确认后将今天的灵感移入回收站
+  inbox delete range [-y 年] [-m 月] [-d 日] [-h 开始 结束]
+                                    按当天小时范围移入回收站（默认当前日期、00 24）
   inbox delete all [--yes]         确认后将全部灵感移入回收站
   inbox trash                     查看回收站
   inbox restore <ID前缀>           恢复灵感
@@ -29,7 +31,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
       --any             多标签匹配任意一个（默认全部匹配）
       --sort <方式>     time（默认）或 priority
       --no-track        show 不增加浏览次数
-  -y, --yes             跳过批量删除确认
+  -y, --yes             跳过批量删除确认（range 中 -y 表示年份，请用 --yes）
       --dir <目录>      数据目录（优先于 INBOX_DIR，默认 ~/inbox）
       --lang <语言>     auto（默认）、zh（中文）或 en（英文）
   -h, --help            显示帮助
@@ -50,6 +52,8 @@ Usage:
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
   inbox delete <ID-prefix>         Move an idea to trash
   inbox delete today [--yes]       Move today's ideas to trash after confirmation
+  inbox delete range [-y year] [-m month] [-d day] [-h start end]
+                                    Move a day's hour range (defaults: today, 00 24)
   inbox delete all [--yes]         Move all ideas to trash after confirmation
   inbox trash                     List trashed ideas
   inbox restore <ID-prefix>        Restore an idea
@@ -64,7 +68,7 @@ Options:
       --any              Match any supplied tag (default: all)
       --sort <order>     time (default) or priority
       --no-track         Do not count this show as a view
-  -y, --yes              Skip bulk-delete confirmation
+  -y, --yes              Skip confirmation (-y is year in range; use --yes)
       --dir <directory>  Overrides INBOX_DIR; default ~/inbox
       --lang <language>  auto (default), zh (Chinese), or en (English)
   -h, --help             Show help
@@ -132,6 +136,13 @@ pub enum Command {
 pub enum DeleteTarget {
     Id(String),
     Today,
+    Range {
+        year: Option<u16>,
+        month: Option<u8>,
+        day: Option<u8>,
+        start_hour: u8,
+        end_hour: u8,
+    },
     All,
 }
 
@@ -142,6 +153,10 @@ pub struct Cli {
 }
 
 pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
+    let args: Vec<OsString> = args.into_iter().collect();
+    let range_mode = args
+        .windows(2)
+        .any(|pair| pair[0] == "delete" && pair[1] == "range");
     let mut parser = lexopt::Parser::from_args(args);
     let mut dir = None;
     let mut tags = Vec::new();
@@ -153,6 +168,10 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     let mut no_track = false;
     let mut yes = false;
     let mut clear_tags = false;
+    let mut range_year = None;
+    let mut range_month = None;
+    let mut range_day = None;
+    let mut range_hours = None;
     let mut lang_seen = false;
     while let Some(arg) = parser.next()? {
         match arg {
@@ -173,6 +192,74 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                     )
                     .into());
                 }
+            }
+            Short('h') if range_mode => {
+                if range_hours.is_some() {
+                    return Err(crate::i18n::text(
+                        "-h 只能指定一次",
+                        "-h may only be specified once",
+                    )
+                    .into());
+                }
+                let start = parser.value()?.string()?.parse::<u8>()?;
+                let end = parser.value()?.string()?.parse::<u8>()?;
+                if start >= end || start > 23 || end > 24 {
+                    return Err(crate::i18n::text(
+                        "小时范围需满足 0 <= 开始 < 结束 <= 24",
+                        "The hour range must satisfy 0 <= start < end <= 24",
+                    )
+                    .into());
+                }
+                range_hours = Some((start, end));
+            }
+            Short('y') if range_mode => {
+                if range_year.is_some() {
+                    return Err(crate::i18n::text(
+                        "-y 只能指定一次",
+                        "-y may only be specified once",
+                    )
+                    .into());
+                }
+                let value = parser.value()?.string()?.parse::<u16>()?;
+                let year = if value < 100 { 2000 + value } else { value };
+                if year == 0 || year > 9999 {
+                    return Err(crate::i18n::text(
+                        "年份必须为 00–99 或 1–9999",
+                        "The year must be 00–99 or 1–9999",
+                    )
+                    .into());
+                }
+                range_year = Some(year);
+            }
+            Short('m') if range_mode => {
+                if range_month.is_some() {
+                    return Err(crate::i18n::text(
+                        "-m 只能指定一次",
+                        "-m may only be specified once",
+                    )
+                    .into());
+                }
+                let value = parser.value()?.string()?.parse::<u8>()?;
+                if !(1..=12).contains(&value) {
+                    return Err(
+                        crate::i18n::text("月份必须为 1–12", "The month must be 1–12").into(),
+                    );
+                }
+                range_month = Some(value);
+            }
+            Short('d') if range_mode => {
+                if range_day.is_some() {
+                    return Err(crate::i18n::text(
+                        "-d 只能指定一次",
+                        "-d may only be specified once",
+                    )
+                    .into());
+                }
+                let value = parser.value()?.string()?.parse::<u8>()?;
+                if !(1..=31).contains(&value) {
+                    return Err(crate::i18n::text("日期必须为 1–31", "The day must be 1–31").into());
+                }
+                range_day = Some(value);
             }
             Short('h') | Long("help") => {
                 return Ok(Cli {
@@ -360,7 +447,10 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 limit: limit.unwrap_or(20),
             }
         }
-        "show" | "delete" if positional.len() == 2 => {
+        "show" | "delete"
+            if positional.len() == 2
+                && !(positional[0] == "delete" && positional[1] == "range") =>
+        {
             if list_options || tags_seen || clear_tags {
                 return Err(crate::i18n::text(
                     "show/delete 不接受列表或标签选项",
@@ -384,8 +474,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                         validate_id_prefix(&value)?;
                         if yes {
                             return Err(crate::i18n::text(
-                                "--yes 仅用于 delete today/all",
-                                "--yes is only valid with delete today/all",
+                                "--yes 仅用于 delete today/range/all",
+                                "--yes is only valid with delete today/range/all",
                             )
                             .into());
                         }
@@ -396,8 +486,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             } else {
                 if yes {
                     return Err(crate::i18n::text(
-                        "--yes 仅用于 delete today/all",
-                        "--yes is only valid with delete today/all",
+                        "--yes 仅用于 delete today/range/all",
+                        "--yes is only valid with delete today/range/all",
                     )
                     .into());
                 }
@@ -406,6 +496,32 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                     prefix: value,
                     track: !no_track,
                 }
+            }
+        }
+        "delete" if positional.len() == 2 && positional[1] == "range" => {
+            reject(
+                list_options || no_track || tags_seen || clear_tags,
+                "delete range 不接受列表、标签或浏览选项",
+                "List, tag, and tracking options are not valid with delete range",
+            )?;
+            let (start_hour, end_hour) = range_hours.unwrap_or((0, 24));
+            if let (Some(year), Some(month), Some(day)) = (range_year, range_month, range_day) {
+                let date = format!("{year:04}-{month:02}-{day:02}");
+                if date.parse::<jiff::civil::Date>().is_err() {
+                    return Err(
+                        crate::i18n::text("指定日期无效", "The specified date is invalid").into(),
+                    );
+                }
+            }
+            Command::Delete {
+                target: DeleteTarget::Range {
+                    year: range_year,
+                    month: range_month,
+                    day: range_day,
+                    start_hour,
+                    end_hour,
+                },
+                yes,
             }
         }
         "trash" if positional.len() == 1 || (positional.len() == 2 && positional[1] == "empty") => {

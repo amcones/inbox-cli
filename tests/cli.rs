@@ -1079,6 +1079,69 @@ fn delete_today_requires_confirmation_and_preserves_other_days() {
 }
 
 #[test]
+fn delete_range_uses_a_left_closed_hour_window_and_preserves_other_notes() {
+    let inbox = Inbox::new();
+    let before = inbox.add_at("before", &[], "2026-09-29T07:59:00+08:00[Asia/Shanghai]");
+    let start = inbox.add_at("start", &[], "2026-09-29T08:00:00+08:00[Asia/Shanghai]");
+    let inside = inbox.add_at("inside", &[], "2026-09-29T11:59:00+08:00[Asia/Shanghai]");
+    let end = inbox.add_at("end", &[], "2026-09-29T12:00:00+08:00[Asia/Shanghai]");
+    let other_day = inbox.add_at("other day", &[], "2026-09-28T09:00:00+08:00[Asia/Shanghai]");
+
+    let cancelled = inbox.run_input(
+        &[
+            "delete", "range", "-y", "26", "-m", "9", "-d", "29", "-h", "8", "12", "--lang", "en",
+        ],
+        "no\n",
+    );
+    assert!(cancelled.status.success());
+    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("2 notes"));
+    assert_eq!(inbox.ok(&["list"]).lines().count(), 5);
+
+    let moved = inbox.ok(&[
+        "delete", "range", "-y", "26", "-m", "9", "-d", "29", "-h", "8", "12", "--yes", "--lang",
+        "en",
+    ]);
+    assert_eq!(moved, "Moved 2 notes to trash\n");
+    let active = inbox.ok(&["list"]);
+    assert!(active.contains(before.short_id()));
+    assert!(active.contains(end.short_id()));
+    assert!(active.contains(other_day.short_id()));
+    assert!(!active.contains(start.short_id()) && !active.contains(inside.short_id()));
+    let trash = inbox.ok(&["trash"]);
+    assert!(trash.contains(start.short_id()) && trash.contains(inside.short_id()));
+}
+
+#[test]
+fn delete_range_rejects_invalid_date_or_hour_options_without_changes() {
+    let inbox = Inbox::new();
+    inbox.add_at("keep", &[], "2026-09-15T10:00:00+08:00[Asia/Shanghai]");
+    for args in [
+        vec!["delete", "range", "-y", "26", "-m", "9", "-d", "31"],
+        vec!["delete", "range", "-m", "13"],
+        vec!["delete", "range", "-d", "0"],
+        vec!["delete", "range", "-h", "12", "12"],
+        vec!["delete", "range", "-h", "23", "25"],
+        vec!["delete", "range", "-y", "26", "-y", "27"],
+    ] {
+        assert_eq!(inbox.run(&args).status.code(), Some(2));
+    }
+    assert_eq!(inbox.ok(&["list"]).lines().count(), 1);
+    assert!(inbox.ok(&["trash"]).is_empty());
+}
+
+#[test]
+fn delete_range_defaults_to_today_and_the_full_day() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "today in default range"]);
+    assert_eq!(
+        inbox.ok(&["delete", "range", "--yes", "--lang", "en"]),
+        "Moved 1 notes to trash\n"
+    );
+    assert!(inbox.ok(&["list"]).is_empty());
+    assert!(inbox.ok(&["trash"]).contains(id.trim()));
+}
+
+#[test]
 fn delete_all_confirmation_and_yes_flag_work_in_both_languages() {
     let inbox = Inbox::new();
     inbox.add_at("old", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");

@@ -32,7 +32,7 @@ inbox --version
 也可以使用 Rust 1.89 或更新版本从源码安装：
 
 ```bash
-cargo install --git https://github.com/amcones/inbox-cli --tag v0.2.2 --locked
+cargo install --git https://github.com/amcones/inbox-cli --tag v0.3.0 --locked
 ```
 
 确保 `~/.cargo/bin` 在 `PATH` 中。开发者也可以在源码目录直接构建：
@@ -66,6 +66,8 @@ inbox edit a83f912b --clear-tags     # 清空标签
 printf '多行\n新正文\n' | inbox edit a83f912b -
 inbox delete a83f912b               # 移入回收站并清除浏览记录
 inbox delete today                  # 确认后将今天的灵感移入回收站
+inbox delete range -h 8 12          # 今天 08:00（含）至 12:00（不含）
+inbox delete range -y 26 -m 9 -d 29 -h 0 24 --yes
 inbox delete all                    # 确认后将全部灵感移入回收站
 inbox delete all --yes              # 已由脚本明确确认，跳过提示
 inbox trash                         # 查看回收站
@@ -107,7 +109,7 @@ export INBOX_LANG=en               # 后续命令默认英文
 
 `inbox edit` 可修改正文，也可用 `-t` 替换全部标签或用 `--clear-tags` 清空标签。未指定标签选项时保留原标签；只指定标签选项时保留原正文。编辑保留 ID、创建时间和浏览次数。
 
-`inbox delete <ID前缀>` 会将单条记录移入回收站。`delete today` 和 `delete all` 会显示待移动数量，只有输入 `yes`、`y`、`是` 或 `确认` 才执行；脚本可用 `--yes`/`-y` 跳过批量确认。确认针对提示时生成的记录快照，因此确认期间新增的灵感不会被移动。删除会清除浏览记录；恢复保留原正文、标签、ID 和创建时间，不恢复浏览次数。
+`inbox delete <ID前缀>` 会将单条记录移入回收站。`delete today`、`delete range` 和 `delete all` 会显示待移动数量，只有输入 `yes`、`y`、`是` 或 `确认` 才执行。`delete range` 删除某一天的小时范围，`-y`、`-m`、`-d` 分别覆盖年、月、日，省略时使用当前值；两位年份按 2000–2099 解释。`-h <开始> <结束>` 使用左闭右开范围，默认 `-h 0 24`。脚本可用 `--yes` 跳过范围删除确认；其他批量删除也接受 `-y`。确认针对提示时生成的记录快照，因此确认期间新增的灵感不会被移动。删除会清除浏览记录；恢复保留原正文、标签、ID 和创建时间，不恢复浏览次数。
 
 `inbox trash` 列出已删除灵感；`inbox restore` 恢复一条；`inbox trash empty` 经确认后永久删除全部回收站内容。永久清空可用 `--yes`/`-y`。未知、歧义或损坏的数据会报错，不猜测目标。
 

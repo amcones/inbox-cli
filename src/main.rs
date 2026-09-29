@@ -173,7 +173,7 @@ fn run(cli: Cli) -> Result<()> {
                         inbox::message!("已移入回收站 {id}", "Moved to trash {id}")
                     )?;
                 }
-                target @ (DeleteTarget::Today | DeleteTarget::All) => {
+                target @ (DeleteTarget::Today | DeleteTarget::Range { .. } | DeleteTarget::All) => {
                     let (plan, label) = {
                         let store = Store::open(&root, false)?.unwrap();
                         match target {
@@ -191,6 +191,36 @@ fn run(cli: Cli) -> Result<()> {
                                 deletion::plan_all(&store)?,
                                 i18n::text("全部", "all").to_owned(),
                             ),
+                            DeleteTarget::Range {
+                                year,
+                                month,
+                                day,
+                                start_hour,
+                                end_hour,
+                            } => {
+                                let now = jiff::Timestamp::now()
+                                    .to_zoned(jiff::tz::TimeZone::try_system()?);
+                                let current = now.date();
+                                let date_text = format!(
+                                    "{:04}-{:02}-{:02}",
+                                    year.unwrap_or(current.year() as u16),
+                                    month.unwrap_or(current.month() as u8),
+                                    day.unwrap_or(current.day() as u8)
+                                );
+                                let date = date_text
+                                    .parse::<jiff::civil::Date>()
+                                    .map_err(|_| {
+                                        i18n::text("指定日期无效", "The specified date is invalid")
+                                    })?
+                                    .to_string();
+                                (
+                                    deletion::plan_range(&store, &date, start_hour, end_hour)?,
+                                    inbox::message!(
+                                        "{date} {start_hour:02}:00–{end_hour:02}:00",
+                                        "{date} {start_hour:02}:00–{end_hour:02}:00"
+                                    ),
+                                )
+                            }
                             DeleteTarget::Id(_) => unreachable!(),
                         }
                     };

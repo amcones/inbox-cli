@@ -1,11 +1,11 @@
 use inbox::{
     Result,
     cli::{self, Cli, Command, DeleteTarget},
-    deletion, i18n,
+    deletion, editing, i18n,
     model::{MAX_CONTENT_BYTES, Note, terminal_text},
     query,
     storage::Store,
-    views,
+    trash, views,
 };
 use std::{
     io::{self, Read, Write},
@@ -57,19 +57,32 @@ fn run(cli: Cli) -> Result<()> {
     let root = cli::data_dir(cli.dir)?;
     match cli.command {
         Command::Add { mut content, tags } => {
-            if content == "-" {
-                content.clear();
-                io::stdin()
-                    .lock()
-                    .take(MAX_CONTENT_BYTES as u64 + 1)
-                    .read_to_string(&mut content)?;
-            }
+            read_stdin_content(&mut content)?;
             let now = jiff::Timestamp::now().to_zoned(jiff::tz::TimeZone::try_system()?);
             let note = Note::new(content, tags, &now)?;
             let store = Store::open(&root, true)?.unwrap();
             store.add(&note)?;
             drop(store);
             writeln!(out, "{}", note.short_id())?;
+        }
+        Command::Edit {
+            prefix,
+            mut content,
+            tags,
+        } => {
+            if let Some(value) = &mut content {
+                read_stdin_content(value)?;
+            }
+            if !root.try_exists()? {
+                return Err(i18n::text("inbox 为空", "The inbox is empty").into());
+            }
+            let store = Store::open(&root, true)?.unwrap();
+            let note = editing::edit(&store, &prefix, content, tags)?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!("已编辑 {}", "Edited {}", note.short_id())
+            )?;
         }
         Command::List {
             tags,
@@ -154,7 +167,11 @@ fn run(cli: Cli) -> Result<()> {
                     let plan = deletion::plan_id(&store, &prefix)?;
                     let id = plan.ids[0].clone();
                     deletion::execute(&store, &plan)?;
-                    writeln!(out, "{}", inbox::message!("已删除 {id}", "Deleted {id}"))?;
+                    writeln!(
+                        out,
+                        "{}",
+                        inbox::message!("已移入回收站 {id}", "Moved to trash {id}")
+                    )?;
                 }
                 target @ (DeleteTarget::Today | DeleteTarget::All) => {
                     let (plan, label) = {
@@ -181,7 +198,7 @@ fn run(cli: Cli) -> Result<()> {
                         writeln!(
                             out,
                             "{}",
-                            inbox::message!("没有可删除的灵感", "No notes to delete")
+                            inbox::message!("没有可移动的灵感", "No notes to move")
                         )?;
                     } else if yes || confirm_delete(&label, plan.ids.len())? {
                         let store = Store::open(&root, true)?.unwrap();
@@ -189,20 +206,69 @@ fn run(cli: Cli) -> Result<()> {
                         writeln!(
                             out,
                             "{}",
-                            inbox::message!("已删除 {count} 条灵感", "Deleted {count} notes")
+                            inbox::message!(
+                                "已将 {count} 条灵感移入回收站",
+                                "Moved {count} notes to trash"
+                            )
                         )?;
                     } else {
                         writeln!(
                             out,
                             "{}",
-                            i18n::text(
-                                "已取消，未删除任何灵感",
-                                "Cancelled; no notes were deleted"
-                            )
+                            i18n::text("已取消，未移动任何灵感", "Cancelled; no notes were moved")
                         )?;
                     }
                 }
             }
+        }
+        Command::Trash { empty, yes } => {
+            if empty {
+                let ids = match Store::open(&root, false)? {
+                    Some(store) => trash::list(&store)?
+                        .into_iter()
+                        .map(|(_, note)| note.meta.id)
+                        .collect::<Vec<_>>(),
+                    None => Vec::new(),
+                };
+                let count = ids.len();
+                if count == 0 {
+                    writeln!(out, "{}", i18n::text("回收站为空", "Trash is empty"))?;
+                } else if yes || confirm_empty_trash(count)? {
+                    let store = Store::open(&root, true)?.unwrap();
+                    let count = trash::empty(&store, &ids)?;
+                    writeln!(
+                        out,
+                        "{}",
+                        inbox::message!(
+                            "已永久删除 {count} 条灵感",
+                            "Permanently deleted {count} notes"
+                        )
+                    )?;
+                } else {
+                    writeln!(
+                        out,
+                        "{}",
+                        i18n::text("已取消，回收站未改变", "Cancelled; trash was not changed")
+                    )?;
+                }
+            } else if let Some(store) = Store::open(&root, false)? {
+                for (entry, note) in trash::list(&store)? {
+                    write!(out, "{}  {}  ", note.short_id(), &entry.deleted_at[..19])?;
+                    write_summary_body(&mut out, &note)?;
+                }
+            }
+        }
+        Command::Restore { prefix } => {
+            if !root.try_exists()? {
+                return Err(i18n::text("回收站为空", "Trash is empty").into());
+            }
+            let store = Store::open(&root, true)?.unwrap();
+            let note = trash::restore(&store, &prefix)?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!("已恢复 {}", "Restored {}", note.short_id())
+            )?;
         }
         Command::Tags => {
             if let Some(store) = Store::open(&root, false)? {
@@ -214,16 +280,19 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Doctor => {
-            let (files, notes, views) = match Store::open(&root, false)? {
-                Some(store) => query::doctor(&store)?,
-                None => (0, 0, 0),
+            let (files, notes, views, trashed) = match Store::open(&root, false)? {
+                Some(store) => {
+                    let (files, notes, views) = query::doctor(&store)?;
+                    (files, notes, views, trash::list(&store)?.len())
+                }
+                None => (0, 0, 0, 0),
             };
             writeln!(
                 out,
                 "{}",
                 inbox::message!(
-                    "OK: {files} 个日期文件，{notes} 条记录，{views} 次浏览",
-                    "OK: {files} day files, {notes} notes, {views} views"
+                    "OK: {files} 个日期文件，{notes} 条记录，{views} 次浏览，回收站 {trashed} 条",
+                    "OK: {files} day files, {notes} notes, {views} views, {trashed} in trash"
                 )
             )?;
         }
@@ -234,6 +303,17 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn write_summary(out: &mut impl Write, note: &Note) -> Result<()> {
+    write!(
+        out,
+        "{}  {} {}  ",
+        note.short_id(),
+        &note.meta.created[..10],
+        &note.meta.created[11..19]
+    )?;
+    write_summary_body(out, note)
+}
+
+fn write_summary_body(out: &mut impl Write, note: &Note) -> Result<()> {
     let clean = terminal_text(&note.content, false);
     let mut chars = clean.chars();
     let mut summary: String = chars.by_ref().take(80).collect();
@@ -249,10 +329,7 @@ fn write_summary(out: &mut impl Write, note: &Note) -> Result<()> {
         .join(" ");
     writeln!(
         out,
-        "{}  {} {}  {}{}{}",
-        note.short_id(),
-        &note.meta.created[..10],
-        &note.meta.created[11..19],
+        "{}{}{}",
         summary,
         if tags.is_empty() { "" } else { "  " },
         tags
@@ -260,12 +337,40 @@ fn write_summary(out: &mut impl Write, note: &Note) -> Result<()> {
     Ok(())
 }
 
+fn read_stdin_content(content: &mut String) -> Result<()> {
+    if content == "-" {
+        content.clear();
+        io::stdin()
+            .lock()
+            .take(MAX_CONTENT_BYTES as u64 + 1)
+            .read_to_string(content)?;
+    }
+    Ok(())
+}
+
 fn confirm_delete(label: &str, count: usize) -> Result<bool> {
     eprint!(
         "{}",
         inbox::message!(
-            "将永久删除{label}的 {count} 条灵感及其浏览记录。输入 yes 确认：",
-            "Permanently delete {count} notes from {label} and their view history. Type yes to confirm: "
+            "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。输入 yes 确认：",
+            "Move {count} notes from {label} to trash and clear their view history. Type yes to confirm: "
+        )
+    );
+    io::stderr().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(
+        matches!(answer.trim().to_ascii_lowercase().as_str(), "yes" | "y")
+            || matches!(answer.trim(), "是" | "确认"),
+    )
+}
+
+fn confirm_empty_trash(count: usize) -> Result<bool> {
+    eprint!(
+        "{}",
+        inbox::message!(
+            "将永久删除回收站中的 {count} 条灵感。输入 yes 确认：",
+            "Permanently delete {count} notes from trash. Type yes to confirm: "
         )
     );
     io::stderr().flush()?;

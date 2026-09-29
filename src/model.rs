@@ -25,24 +25,7 @@ impl Note {
     pub fn new(content: String, tags: Vec<String>, now: &Zoned) -> Result<Self> {
         // Check the raw input before CRLF normalization. stdin is read with a
         // MAX+1 sentinel; normalizing first could hide that it was truncated.
-        if content.len() > MAX_CONTENT_BYTES {
-            return Err(crate::i18n::text(
-                "单条内容不能超过 1 MiB",
-                "A note must not exceed 1 MiB",
-            )
-            .into());
-        }
-        let content = content.replace("\r\n", "\n");
-        if content.trim().is_empty() {
-            return Err(crate::i18n::text("内容不能为空", "Content must not be empty").into());
-        }
-        if content.contains('\0') || content.contains('\r') {
-            return Err(crate::i18n::text(
-                "内容不能包含 NUL 或单独的回车字符",
-                "Content must not contain NUL or standalone carriage returns",
-            )
-            .into());
-        }
+        let content = normalize_content(content)?;
         let created = format!(
             "{}.{:09}{}",
             now.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -73,6 +56,44 @@ impl Note {
                 tags.iter().all(|tag| self.meta.tags.contains(tag))
             }
     }
+
+    pub fn updated(&self, content: Option<String>, tags: Option<Vec<String>>) -> Result<Self> {
+        Ok(Self {
+            meta: Metadata {
+                id: self.meta.id.clone(),
+                created: self.meta.created.clone(),
+                tags: match tags {
+                    Some(tags) => normalize_tags(tags)?,
+                    None => self.meta.tags.clone(),
+                },
+            },
+            timestamp: self.timestamp,
+            content: match content {
+                Some(content) => normalize_content(content)?,
+                None => self.content.clone(),
+            },
+        })
+    }
+}
+
+pub fn normalize_content(content: String) -> Result<String> {
+    if content.len() > MAX_CONTENT_BYTES {
+        return Err(
+            crate::i18n::text("单条内容不能超过 1 MiB", "A note must not exceed 1 MiB").into(),
+        );
+    }
+    let content = content.replace("\r\n", "\n");
+    if content.trim().is_empty() {
+        return Err(crate::i18n::text("内容不能为空", "Content must not be empty").into());
+    }
+    if content.contains('\0') || content.contains('\r') {
+        return Err(crate::i18n::text(
+            "内容不能包含 NUL 或单独的回车字符",
+            "Content must not contain NUL or standalone carriage returns",
+        )
+        .into());
+    }
+    Ok(content)
 }
 
 pub fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>> {

@@ -4,7 +4,7 @@ use crate::{
     i18n::text,
     markdown, query,
     storage::{Store, open_rw, sync_dir},
-    views,
+    trash, views,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -27,6 +27,8 @@ struct Manifest {
     date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     id: Option<String>,
+    #[serde(default)]
+    trash: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -84,6 +86,7 @@ pub fn execute(store: &Store, plan: &Plan) -> Result<usize> {
         .into());
     }
     let mut found = HashSet::new();
+    let mut removed = BTreeMap::new();
     let mut replacements = BTreeMap::<String, String>::new();
     for path in store.day_files()? {
         let mut notes = Vec::new();
@@ -101,7 +104,8 @@ pub fn execute(store: &Store, plan: &Plan) -> Result<usize> {
         let mut next = format!("# {date}\n\n");
         for note in notes {
             if wanted.contains(&note.meta.id) {
-                found.insert(note.meta.id);
+                found.insert(note.meta.id.clone());
+                removed.insert(note.meta.id.clone(), note);
             } else {
                 next.push_str(&markdown::encode(&note)?);
             }
@@ -133,6 +137,23 @@ pub fn execute(store: &Store, plan: &Plan) -> Result<usize> {
     let stage = store.root.join(PENDING);
     cleanup_uncommitted(&stage)?;
     crate::storage::ensure_dir(&stage)?;
+    trash::ensure_trash(&store.root)?;
+    for id in &plan.ids {
+        if trash::path(&store.root, id).try_exists()? {
+            return Err(text(
+                "回收站中已存在相同 ID，未执行删除",
+                "Trash already contains the same ID; nothing was deleted",
+            )
+            .into());
+        }
+    }
+    let deleted_at = jiff::Timestamp::now().to_string();
+    for (id, note) in &removed {
+        write_stage(
+            &stage.join(trash_stage_name(id)),
+            &trash::encode(note, &deleted_at)?,
+        )?;
+    }
     for (date, content) in &replacements {
         write_stage(&stage.join(stage_name(date)), content.as_bytes())?;
     }
@@ -142,6 +163,7 @@ pub fn execute(store: &Store, plan: &Plan) -> Result<usize> {
         ids: plan.ids.clone(),
         date: None,
         id: None,
+        trash: true,
     })?;
     write_stage(&stage.join("manifest.tmp"), &manifest)?;
     fs::rename(stage.join("manifest.tmp"), stage.join("manifest.json"))?;
@@ -175,6 +197,28 @@ pub fn recover(root: &Path) -> Result<()> {
         manifest.ids.push(id);
     }
     validate_manifest(&manifest)?;
+    if manifest.trash {
+        let trash_dir = trash::ensure_trash(root)?;
+        for id in &manifest.ids {
+            let staged = stage.join(trash_stage_name(id));
+            let destination = trash::path(root, id);
+            if staged.try_exists()? {
+                if destination.try_exists()? {
+                    if fs::read(&staged)? != fs::read(&destination)? {
+                        return Err(text(
+                            "回收站中存在冲突的灵感",
+                            "Trash contains a conflicting note",
+                        )
+                        .into());
+                    }
+                    fs::remove_file(staged)?;
+                } else {
+                    fs::rename(staged, destination)?;
+                }
+            }
+        }
+        sync_dir(&trash_dir)?;
+    }
     for date in &manifest.dates {
         let destination = day_path(root, date)?;
         let staged = stage.join(stage_name(date));
@@ -206,6 +250,16 @@ pub fn recover(root: &Path) -> Result<()> {
             .is_some_and(|(id, _)| ids.contains(id))
     }) {
         return Err(text("删除恢复不完整，请保留恢复目录并检查文件", "Deletion recovery is incomplete; preserve the recovery directory and inspect the files").into());
+    }
+    if manifest.trash {
+        for id in &manifest.ids {
+            let (_, note) =
+                serde_json::from_slice::<trash::Entry>(&fs::read(trash::path(root, id))?)?
+                    .validate()?;
+            if note.meta.id != *id {
+                return Err(text("删除恢复不完整，请保留恢复目录并检查文件", "Deletion recovery is incomplete; preserve the recovery directory and inspect the files").into());
+            }
+        }
     }
     cleanup_committed(&stage, &manifest)?;
     sync_dir(&root.join(".inbox"))?;
@@ -278,6 +332,10 @@ fn stage_name(date: &str) -> String {
     format!("day-{date}.next")
 }
 
+fn trash_stage_name(id: &str) -> String {
+    format!("trash-{id}.json.next")
+}
+
 fn write_stage(path: &Path, bytes: &[u8]) -> Result<()> {
     let (mut file, fresh) = open_rw(path, false)?;
     if !fresh {
@@ -321,7 +379,13 @@ fn cleanup_uncommitted(stage: &Path) -> Result<()> {
             || name
                 .strip_prefix("day-")
                 .and_then(|s| s.strip_suffix(".next"))
-                .is_some_and(|date| validate_date(date).is_ok());
+                .is_some_and(|date| validate_date(date).is_ok())
+            || name
+                .strip_prefix("trash-")
+                .and_then(|s| s.strip_suffix(".json.next"))
+                .is_some_and(|id| {
+                    uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id)
+                });
         if !known || !entry.file_type()?.is_file() {
             return Err(text(
                 "删除恢复目录包含未知文件",
@@ -338,6 +402,9 @@ fn cleanup_uncommitted(stage: &Path) -> Result<()> {
 fn cleanup_committed(stage: &Path, manifest: &Manifest) -> Result<()> {
     for date in &manifest.dates {
         remove_if_exists(&stage.join(stage_name(date)))?;
+    }
+    for id in &manifest.ids {
+        remove_if_exists(&stage.join(trash_stage_name(id)))?;
     }
     for name in ["day.next", "views.next", "manifest.tmp", "manifest.json"] {
         remove_if_exists(&stage.join(name))?;

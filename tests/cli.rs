@@ -152,7 +152,7 @@ fn full_text_search_supports_case_tags_sorting_and_limits_without_tracking_views
 fn add_show_and_tags_are_persisted_and_lists_do_not_count_views() {
     let inbox = Inbox::new();
     let id = inbox.ok(&[
-        "-m",
+        "add",
         "记住这个想法 🦀",
         "-t",
         "产品",
@@ -183,9 +183,9 @@ fn add_show_and_tags_are_persisted_and_lists_do_not_count_views() {
 #[test]
 fn tags_support_intersection_union_and_exact_case_sensitive_matching() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "one", "-t", "a", "-t", "b"]);
-    inbox.ok(&["-m", "two", "-t", "a"]);
-    inbox.ok(&["-m", "three", "-t", "B"]);
+    inbox.ok(&["add", "one", "-t", "a", "-t", "b"]);
+    inbox.ok(&["add", "two", "-t", "a"]);
+    inbox.ok(&["add", "three", "-t", "B"]);
     let both = inbox.ok(&["list", "-t", "a", "-t", "b"]);
     assert_eq!(both.lines().count(), 1);
     assert!(both.contains("one"));
@@ -205,7 +205,7 @@ fn stdin_multiline_and_reserved_markers_round_trip() {
     let text = "第一行\r\n\r\n- 第二行\r\n<!-- inbox:note {} -->\r\n<!-- inbox:end fake -->\r\n";
     let mut child = inbox
         .command()
-        .args(["-m", "-", "-t", "a-->b"])
+        .args(["add", "-", "-t", "a-->b"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -300,7 +300,7 @@ fn concurrent_adds_and_views_do_not_lose_or_interleave_data() {
         .map(|i| {
             inbox
                 .command()
-                .args(["-m", &format!("并发 {i}")])
+                .args(["add", &format!("并发 {i}")])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
@@ -339,27 +339,27 @@ fn concurrent_adds_and_views_do_not_lose_or_interleave_data() {
 #[test]
 fn partial_markdown_is_reported_and_never_overwritten() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "完整记录"]);
+    inbox.ok(&["add", "完整记录"]);
     let file = inbox.files().pop().unwrap();
     let mut damaged = fs::read(&file).unwrap();
     damaged.extend_from_slice(b"<!-- inbox:note {\"id\":");
     fs::write(&file, &damaged).unwrap();
     assert!(!inbox.run(&["doctor"]).status.success());
     assert!(!inbox.run(&["list"]).status.success());
-    assert!(!inbox.run(&["-m", "不能追加"]).status.success());
+    assert!(!inbox.run(&["add", "不能追加"]).status.success());
     assert_eq!(fs::read(file).unwrap(), damaged);
 }
 
 #[test]
 fn partial_view_log_does_not_prevent_recording_or_untracked_reading() {
     let inbox = Inbox::new();
-    let id = inbox.ok(&["-m", "original"]);
+    let id = inbox.ok(&["add", "original"]);
     inbox.ok(&["show", id.trim()]);
     let log = inbox.0.join(".inbox/views.log");
     let mut damaged = fs::read(&log).unwrap();
     damaged.extend_from_slice(b"partial");
     fs::write(&log, &damaged).unwrap();
-    inbox.ok(&["-m", "still writable"]);
+    inbox.ok(&["add", "still writable"]);
     inbox.ok(&["show", id.trim(), "--no-track"]);
     inbox.ok(&["list"]);
     let out = inbox.run(&["show", id.trim()]);
@@ -402,11 +402,11 @@ fn ambiguous_id_and_duplicate_ids_fail_explicitly() {
 fn invalid_input_does_not_create_a_store() {
     let inbox = Inbox::new();
     for args in [
-        vec!["-m", "  \n"],
-        vec!["-m", "a", "-t", "bad tag"],
+        vec!["add", "  \n"],
+        vec!["add", "a", "-t", "bad tag"],
         vec!["list", "--limit", "0"],
         vec!["show"],
-        vec!["-m", "a", "--sort", "time"],
+        vec!["add", "a", "--sort", "time"],
         vec!["--any"],
         vec!["tags", "-t", "a"],
         vec!["--dir", ""],
@@ -424,14 +424,14 @@ fn command_line_dir_overrides_environment_and_home_is_default() {
     let out = inbox
         .command()
         .env("INBOX_DIR", &other.0)
-        .args(["-m", "explicit"])
+        .args(["add", "explicit"])
         .output()
         .unwrap();
     assert!(out.status.success());
     assert!(!other.0.exists());
     let output = Command::new(env!("CARGO_BIN_EXE_inbox"))
         .env("INBOX_DIR", &other.0)
-        .args(["-m", "environment"])
+        .args(["add", "environment"])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -439,7 +439,7 @@ fn command_line_dir_overrides_environment_and_home_is_default() {
     let output = Command::new(env!("CARGO_BIN_EXE_inbox"))
         .env_remove("INBOX_DIR")
         .env("HOME", &home.0)
-        .args(["-m", "home"])
+        .args(["add", "home"])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -449,10 +449,10 @@ fn command_line_dir_overrides_environment_and_home_is_default() {
 #[test]
 fn unsupported_format_is_not_modified() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "original"]);
+    inbox.ok(&["add", "original"]);
     let version = inbox.0.join(".inbox/format-version");
     fs::write(&version, "99\n").unwrap();
-    assert!(!inbox.run(&["-m", "another"]).status.success());
+    assert!(!inbox.run(&["add", "another"]).status.success());
     assert!(!inbox.run(&["list"]).status.success());
     assert_eq!(fs::read_to_string(version).unwrap(), "99\n");
 }
@@ -460,7 +460,7 @@ fn unsupported_format_is_not_modified() {
 #[test]
 fn external_body_edits_are_visible_without_reindexing() {
     let inbox = Inbox::new();
-    let id = inbox.ok(&["-m", "before"]);
+    let id = inbox.ok(&["add", "before"]);
     let file = inbox.files().pop().unwrap();
     let text = fs::read_to_string(&file)
         .unwrap()
@@ -488,11 +488,11 @@ fn weird_filenames_do_not_panic_or_become_notes() {
 fn read_only_day_file_is_not_reported_as_success() {
     use std::os::unix::fs::PermissionsExt;
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "original"]);
+    inbox.ok(&["add", "original"]);
     let file = inbox.files().pop().unwrap();
     let before = fs::read(&file).unwrap();
     fs::set_permissions(&file, fs::Permissions::from_mode(0o400)).unwrap();
-    let result = inbox.run(&["-m", "should fail"]);
+    let result = inbox.run(&["add", "should fail"]);
     fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
     assert!(!result.status.success());
     assert_eq!(fs::read(&file).unwrap(), before);
@@ -512,7 +512,7 @@ fn view_counts_are_cumulative_without_rewriting_markdown() {
 #[test]
 fn metadata_errors_report_file_location() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "original"]);
+    inbox.ok(&["add", "original"]);
     let path = inbox.files().pop().unwrap();
     let text = fs::read_to_string(&path)
         .unwrap()
@@ -529,12 +529,12 @@ fn metadata_errors_report_file_location() {
 #[test]
 fn missing_footer_newline_is_reported_by_doctor_and_add() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "original"]);
+    inbox.ok(&["add", "original"]);
     let path = inbox.files().pop().unwrap();
     let text = fs::read_to_string(&path).unwrap();
     fs::write(&path, text.trim_end_matches('\n')).unwrap();
     assert!(!inbox.run(&["doctor"]).status.success());
-    assert!(!inbox.run(&["-m", "another"]).status.success());
+    assert!(!inbox.run(&["add", "another"]).status.success());
 }
 
 #[test]
@@ -542,7 +542,7 @@ fn oversized_stdin_is_rejected_without_creating_data() {
     let inbox = Inbox::new();
     let mut child = inbox
         .command()
-        .args(["-m", "-"])
+        .args(["add", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -583,13 +583,18 @@ fn broken_output_pipe_does_not_increment_views() {
 fn symlink_day_file_is_not_written_through() {
     use std::os::unix::fs::symlink;
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "original"]);
+    inbox.ok(&["add", "original"]);
     let path = inbox.files().pop().unwrap();
     let backup = path.with_extension("backup");
     fs::rename(&path, &backup).unwrap();
     let before = fs::read(&backup).unwrap();
     symlink(&backup, &path).unwrap();
-    assert!(!inbox.run(&["-m", "must not reach backup"]).status.success());
+    assert!(
+        !inbox
+            .run(&["add", "must not reach backup"])
+            .status
+            .success()
+    );
     assert_eq!(fs::read(&backup).unwrap(), before);
 }
 
@@ -628,7 +633,7 @@ fn killed_process_releases_the_write_lock() {
     }
     child.kill().unwrap();
     child.wait().unwrap();
-    inbox.ok(&["-m", "after process death"]);
+    inbox.ok(&["add", "after process death"]);
     assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
 }
 
@@ -659,7 +664,7 @@ fn oversized_crlf_input_cannot_be_silently_truncated_by_normalization() {
     let text = "x\r\n".repeat(inbox::model::MAX_CONTENT_BYTES / 3 + 1);
     let mut child = inbox
         .command()
-        .args(["-m", "-"])
+        .args(["add", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -680,7 +685,7 @@ fn oversized_crlf_input_cannot_be_silently_truncated_by_normalization() {
 #[test]
 fn leading_hash_tags_normalize_consistently() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "tagged", "-t", "##产品", "-t", "#产品"]);
+    inbox.ok(&["add", "tagged", "-t", "##产品", "-t", "#产品"]);
     assert_eq!(inbox.ok(&["tags"]), "产品\t1\n");
     assert!(inbox.ok(&["list", "-t", "##产品"]).contains("tagged"));
 }
@@ -712,16 +717,16 @@ fn language_options_translate_help_status_and_errors_without_touching_content() 
     assert!(inbox.ok(&["--lang=zh", "--help"]).contains("用法:"));
     assert!(inbox.ok(&["--lang", "en", "doctor"]).contains("0 notes"));
     for (lang, expected) in [("en", "Content must not be empty"), ("zh", "内容不能为空")] {
-        let out = inbox.run(&["--lang", lang, "-m", " "]);
+        let out = inbox.run(&["--lang", lang, "add", " "]);
         assert!(!out.status.success());
         assert!(String::from_utf8_lossy(&out.stderr).contains(expected));
     }
-    let id = inbox.ok(&["--lang", "en", "-m", "中文原文 English", "-t", "标签"]);
+    let id = inbox.ok(&["--lang", "en", "add", "中文原文 English", "-t", "标签"]);
     let output = inbox.ok(&["show", id.trim(), "--lang", "en", "--no-track"]);
     assert!(output.contains("中文原文 English"));
     assert!(output.contains("#标签"));
     // A language-looking message is content, not a global option.
-    inbox.ok(&["-m", "--lang=en"]);
+    inbox.ok(&["add", "--", "--lang=en"]);
     assert!(inbox.ok(&["doctor"]).contains("2 条记录"));
     for args in [
         vec!["--lang", "fr"],
@@ -821,7 +826,7 @@ fn deleting_middle_note_preserves_neighbors_exactly_and_cleans_views() {
     assert!(
         inbox
             .ok(&["delete", b.short_id(), "--lang", "en"])
-            .contains("Deleted")
+            .contains("Moved to trash")
     );
     assert_eq!(fs::read_to_string(&file).unwrap(), expected);
     let log = fs::read_to_string(inbox.0.join(".inbox/views.log")).unwrap();
@@ -837,8 +842,8 @@ fn deleting_middle_note_preserves_neighbors_exactly_and_cleans_views() {
 #[test]
 fn deleting_first_and_last_notes_keeps_a_valid_empty_day() {
     let inbox = Inbox::new();
-    let a = inbox.ok(&["-m", "first"]);
-    let b = inbox.ok(&["-m", "last"]);
+    let a = inbox.ok(&["add", "first"]);
+    let b = inbox.ok(&["add", "last"]);
     let file = inbox.files().pop().unwrap();
     inbox.ok(&["delete", a.trim()]);
     assert!(inbox.ok(&["list"]).contains("last"));
@@ -848,7 +853,7 @@ fn deleting_first_and_last_notes_keeps_a_valid_empty_day() {
         format!("# {}\n\n", file.file_stem().unwrap().to_str().unwrap())
     );
     assert!(inbox.ok(&["list"]).is_empty());
-    inbox.ok(&["-m", "new after deletion"]);
+    inbox.ok(&["add", "new after deletion"]);
     assert!(inbox.ok(&["doctor"]).contains("1 条记录，0 次浏览"));
 }
 
@@ -897,7 +902,7 @@ fn invalid_ambiguous_or_damaged_deletions_leave_data_unchanged() {
 #[test]
 fn concurrent_show_delete_and_add_keep_views_consistent() {
     let inbox = Inbox::new();
-    let id = inbox.ok(&["-m", "to remove"]);
+    let id = inbox.ok(&["add", "to remove"]);
     let mut children = Vec::new();
     for _ in 0..12 {
         children.push(
@@ -918,7 +923,7 @@ fn concurrent_show_delete_and_add_keep_views_consistent() {
         .unwrap();
     let mut add = inbox
         .command()
-        .args(["-m", "survivor"])
+        .args(["add", "survivor"])
         .stdout(Stdio::null())
         .spawn()
         .unwrap();
@@ -965,9 +970,68 @@ fn committed_deletions_recover_at_every_replacement_boundary() {
 }
 
 #[test]
+fn committed_trash_deletions_recover_at_every_replacement_boundary() {
+    for applied in 0..=3 {
+        let inbox = Inbox::new();
+        let note = inbox.add_at(
+            "recover to trash",
+            &["safe"],
+            "2026-09-29T09:00:00+08:00[Asia/Shanghai]",
+        );
+        inbox.ok(&["show", &note.meta.id]);
+        let stage = inbox.0.join(".inbox/delete-pending");
+        fs::create_dir(&stage).unwrap();
+        fs::write(stage.join("day-2026-09-29.next"), "# 2026-09-29\n\n").unwrap();
+        fs::write(stage.join("views.next"), "").unwrap();
+        let trash_name = format!("trash-{}.json.next", note.meta.id);
+        fs::write(
+            stage.join(&trash_name),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "version": 1,
+                "deleted_at": "2026-09-29T04:00:00Z",
+                "note": { "meta": note.meta, "content": note.content }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            stage.join("manifest.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "dates": ["2026-09-29"], "ids": [note.meta.id], "trash": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let trash_dir = inbox.0.join(".inbox/trash");
+        fs::create_dir(&trash_dir).unwrap();
+        if applied >= 1 {
+            fs::rename(
+                stage.join(&trash_name),
+                trash_dir.join(format!("{}.json", note.meta.id)),
+            )
+            .unwrap();
+        }
+        if applied >= 2 {
+            fs::rename(
+                stage.join("day-2026-09-29.next"),
+                inbox.0.join("2026/09/2026-09-29.md"),
+            )
+            .unwrap();
+        }
+        if applied >= 3 {
+            fs::rename(stage.join("views.next"), inbox.0.join(".inbox/views.log")).unwrap();
+        }
+        assert!(inbox.ok(&["list"]).is_empty());
+        let trashed = inbox.ok(&["trash"]);
+        assert!(trashed.contains(note.short_id()) && trashed.contains("recover to trash"));
+        assert!(!stage.exists());
+    }
+}
+
+#[test]
 fn uncommitted_staging_is_ignored_and_can_be_replaced_by_next_delete() {
     let inbox = Inbox::new();
-    let id = inbox.ok(&["-m", "still here"]);
+    let id = inbox.ok(&["add", "still here"]);
     let stage = inbox.0.join(".inbox/delete-pending");
     fs::create_dir(&stage).unwrap();
     fs::write(stage.join("day.next"), "partial").unwrap();
@@ -988,8 +1052,8 @@ fn delete_missing_inbox_does_not_create_it() {
 fn delete_today_requires_confirmation_and_preserves_other_days() {
     let inbox = Inbox::new();
     let old = inbox.add_at("yesterday", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
-    let today_a = inbox.ok(&["-m", "today a"]);
-    let today_b = inbox.ok(&["-m", "today b"]);
+    let today_a = inbox.ok(&["add", "today a"]);
+    let today_b = inbox.ok(&["add", "today b"]);
     for id in [&old.meta.id, today_a.trim(), today_b.trim()] {
         inbox.ok(&["show", id]);
     }
@@ -1007,7 +1071,7 @@ fn delete_today_requires_confirmation_and_preserves_other_days() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(String::from_utf8_lossy(&out.stdout).contains("已删除 2 条灵感"));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("已将 2 条灵感移入回收站"));
     let list = inbox.ok(&["list"]);
     assert_eq!(list.lines().count(), 1);
     assert!(list.contains("yesterday"));
@@ -1018,25 +1082,28 @@ fn delete_today_requires_confirmation_and_preserves_other_days() {
 fn delete_all_confirmation_and_yes_flag_work_in_both_languages() {
     let inbox = Inbox::new();
     inbox.add_at("old", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
-    inbox.ok(&["-m", "new"]);
+    inbox.ok(&["add", "new"]);
     let cancelled = inbox.run_input(&["delete", "all", "--lang", "en"], "n\n");
     assert!(cancelled.status.success());
-    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Permanently delete 2 notes"));
+    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Move 2 notes"));
     assert!(String::from_utf8_lossy(&cancelled.stdout).contains("Cancelled"));
     let deleted = inbox.ok(&["delete", "all", "--yes", "--lang", "en"]);
-    assert_eq!(deleted, "Deleted 2 notes\n");
+    assert_eq!(deleted, "Moved 2 notes to trash\n");
     assert!(inbox.ok(&["list"]).is_empty());
     assert!(inbox.ok(&["doctor"]).contains("0 条记录，0 次浏览"));
 
-    inbox.ok(&["-m", "one more"]);
-    assert_eq!(inbox.ok(&["delete", "all", "-y"]), "已删除 1 条灵感\n");
-    assert_eq!(inbox.ok(&["delete", "all", "-y"]), "没有可删除的灵感\n");
+    inbox.ok(&["add", "one more"]);
+    assert_eq!(
+        inbox.ok(&["delete", "all", "-y"]),
+        "已将 1 条灵感移入回收站\n"
+    );
+    assert_eq!(inbox.ok(&["delete", "all", "-y"]), "没有可移动的灵感\n");
 }
 
 #[test]
 fn bulk_delete_option_validation_is_strict() {
     let inbox = Inbox::new();
-    inbox.ok(&["-m", "keep"]);
+    inbox.ok(&["add", "keep"]);
     for args in [
         vec!["delete", "all", "--no-track"],
         vec!["delete", "today", "-t", "x"],
@@ -1048,6 +1115,135 @@ fn bulk_delete_option_validation_is_strict() {
         assert_eq!(inbox.run(&args).status.code(), Some(2), "{args:?}");
     }
     assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
+}
+
+#[test]
+fn add_is_a_subcommand_and_message_flag_is_rejected() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "new command"]);
+    assert!(
+        inbox
+            .ok(&["show", id.trim(), "--no-track"])
+            .contains("new command")
+    );
+    assert_eq!(inbox.run(&["-m", "old command"]).status.code(), Some(2));
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
+}
+
+#[test]
+fn edit_updates_content_and_explicit_tags_while_preserving_identity_and_views() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "before", "-t", "old"]);
+    inbox.ok(&["show", id.trim()]);
+    assert!(
+        inbox
+            .ok(&["edit", id.trim(), "after\nsecond line"])
+            .contains(id.trim())
+    );
+    let shown = inbox.ok(&["show", id.trim(), "--no-track"]);
+    assert!(shown.contains("after\nsecond line"));
+    assert!(shown.contains("#old"));
+    assert!(
+        inbox
+            .ok(&["edit", id.trim(), "-t", "new", "-t", "two"])
+            .contains(id.trim())
+    );
+    let shown = inbox.ok(&["show", id.trim(), "--no-track"]);
+    assert!(shown.contains("after\nsecond line"));
+    assert!(shown.contains("#new #two"));
+    assert!(!shown.contains("#old"));
+    inbox.ok(&["edit", id.trim(), "--clear-tags"]);
+    assert_eq!(inbox.ok(&["tags"]), "");
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录，1 次浏览"));
+}
+
+#[test]
+fn edit_reads_stdin_and_rejects_invalid_or_ambiguous_requests_without_changes() {
+    let mut a = Note::new(
+        "first".into(),
+        vec!["a".into()],
+        &"2026-09-29T09:00:00+08:00[Asia/Shanghai]".parse().unwrap(),
+    )
+    .unwrap();
+    a.meta.id = "aaaaaaaa-0000-4000-8000-000000000001".into();
+    let mut b = a.clone();
+    b.meta.id = "aaaaaaaa-0000-4000-8000-000000000002".into();
+    b.content = "second".into();
+    let inbox = Inbox::new();
+    {
+        let store = Store::open(&inbox.0, true).unwrap().unwrap();
+        store.add(&a).unwrap();
+        store.add(&b).unwrap();
+    }
+    let before = fs::read(inbox.files().pop().unwrap()).unwrap();
+    assert!(!inbox.run(&["edit", "aaaa", "changed"]).status.success());
+    assert!(!inbox.run(&["edit", &a.meta.id, " "]).status.success());
+    assert_eq!(fs::read(inbox.files().pop().unwrap()).unwrap(), before);
+    let out = inbox.run_input(&["edit", &a.meta.id, "-"], "stdin\ncontent");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        inbox
+            .ok(&["show", &a.meta.id, "--no-track"])
+            .contains("stdin\ncontent")
+    );
+}
+
+#[test]
+fn delete_moves_to_trash_restore_preserves_note_and_clears_view_history() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "recover me", "-t", "saved"]);
+    inbox.ok(&["show", id.trim()]);
+    inbox.ok(&["delete", id.trim()]);
+    assert!(inbox.ok(&["list"]).is_empty());
+    let trash = inbox.ok(&["trash"]);
+    assert!(trash.contains(id.trim()) && trash.contains("recover me") && trash.contains("#saved"));
+    assert!(inbox.ok(&["restore", id.trim()]).contains(id.trim()));
+    assert!(inbox.ok(&["trash"]).is_empty());
+    let shown = inbox.ok(&["show", id.trim(), "--no-track"]);
+    assert!(shown.contains("recover me") && shown.contains("#saved"));
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录，0 次浏览"));
+}
+
+#[test]
+fn trash_empty_requires_confirmation_and_yes_permanently_removes_entries() {
+    let inbox = Inbox::new();
+    let first = inbox.ok(&["add", "first"]);
+    let second = inbox.ok(&["add", "second"]);
+    inbox.ok(&["delete", first.trim()]);
+    inbox.ok(&["delete", second.trim()]);
+    let cancelled = inbox.run_input(&["trash", "empty", "--lang", "en"], "no\n");
+    assert!(cancelled.status.success());
+    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Permanently delete 2 notes"));
+    assert_eq!(inbox.ok(&["trash"]).lines().count(), 2);
+    assert_eq!(
+        inbox.ok(&["trash", "empty", "--yes", "--lang", "en"]),
+        "Permanently deleted 2 notes\n"
+    );
+    assert!(inbox.ok(&["trash"]).is_empty());
+    assert!(!inbox.run(&["restore", first.trim()]).status.success());
+}
+
+#[test]
+fn doctor_and_restore_reject_damaged_trash_entries() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "damaged later"]);
+    inbox.ok(&["delete", id.trim()]);
+    let file = fs::read_dir(inbox.0.join(".inbox/trash"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    value["version"] = 99.into();
+    fs::write(&file, serde_json::to_vec(&value).unwrap()).unwrap();
+    assert!(!inbox.run(&["doctor"]).status.success());
+    assert!(!inbox.run(&["restore", id.trim()]).status.success());
+    assert!(inbox.ok(&["list"]).is_empty());
 }
 
 #[test]

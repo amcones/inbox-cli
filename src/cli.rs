@@ -6,20 +6,25 @@ use std::{ffi::OsString, path::PathBuf};
 pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
 
 用法:
-  inbox -m '内容' [-t 标签]...       记录灵感（-m - 从标准输入读取）
+  inbox add '内容' [-t 标签]...      记录灵感（内容为 - 时读取标准输入）
+  inbox edit <ID前缀> ['内容']       编辑正文（内容为 - 时读取标准输入）
+  inbox edit <ID前缀> -t 标签...    替换标签（--clear-tags 清空标签）
   inbox [list] [-t 标签]...         最近的灵感，默认 20 条
   inbox list --sort priority       按隐藏优先级排序
   inbox search <关键词> [-t 标签]... 搜索完整正文
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
-  inbox delete <ID前缀>            删除灵感及其浏览记录
-  inbox delete today [--yes]       确认后删除今天的全部灵感
-  inbox delete all [--yes]         确认后删除全部灵感
+  inbox delete <ID前缀>            将灵感移入回收站
+  inbox delete today [--yes]       确认后将今天的灵感移入回收站
+  inbox delete all [--yes]         确认后将全部灵感移入回收站
+  inbox trash                     查看回收站
+  inbox restore <ID前缀>           恢复灵感
+  inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
 
 选项:
-  -m, --message <内容>   新增内容，最多 1 MiB
   -t, --tag <标签>       添加或筛选标签，可重复，区分大小写
+      --clear-tags      编辑时清空全部标签
   -n, --limit <数量>     列表数量，必须大于 0
       --any             多标签匹配任意一个（默认全部匹配）
       --sort <方式>     time（默认）或 priority
@@ -36,20 +41,25 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
 pub const HELP_EN: &str = "inbox — Capture ideas in local Markdown files
 
 Usage:
-  inbox -m 'content' [-t tag]...    Add an idea (-m - reads stdin)
+  inbox add 'content' [-t tag]...   Add an idea (content - reads stdin)
+  inbox edit <ID-prefix> ['content'] Edit content (content - reads stdin)
+  inbox edit <ID-prefix> -t tag...  Replace tags (--clear-tags removes all)
   inbox [list] [-t tag]...         Recent ideas, default 20
   inbox list --sort priority       Sort by hidden priority
   inbox search <query> [-t tag]... Search complete note bodies
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
-  inbox delete <ID-prefix>         Delete an idea and its view history
-  inbox delete today [--yes]       Delete today's ideas after confirmation
-  inbox delete all [--yes]         Delete all ideas after confirmation
+  inbox delete <ID-prefix>         Move an idea to trash
+  inbox delete today [--yes]       Move today's ideas to trash after confirmation
+  inbox delete all [--yes]         Move all ideas to trash after confirmation
+  inbox trash                     List trashed ideas
+  inbox restore <ID-prefix>        Restore an idea
+  inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
 
 Options:
-  -m, --message <content> Add content, up to 1 MiB
   -t, --tag <tag>         Add/filter a tag; repeatable, case-sensitive
+      --clear-tags       Remove all tags while editing
   -n, --limit <count>     List limit, must be positive
       --any              Match any supplied tag (default: all)
       --sort <order>     time (default) or priority
@@ -79,6 +89,11 @@ pub enum Command {
         content: String,
         tags: Vec<String>,
     },
+    Edit {
+        prefix: String,
+        content: Option<String>,
+        tags: Option<Vec<String>>,
+    },
     List {
         tags: Vec<String>,
         any: bool,
@@ -99,6 +114,13 @@ pub enum Command {
     Delete {
         target: DeleteTarget,
         yes: bool,
+    },
+    Trash {
+        empty: bool,
+        yes: bool,
+    },
+    Restore {
+        prefix: String,
     },
     Tags,
     Doctor,
@@ -122,14 +144,15 @@ pub struct Cli {
 pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     let mut parser = lexopt::Parser::from_args(args);
     let mut dir = None;
-    let mut message = None;
     let mut tags = Vec::new();
+    let mut tags_seen = false;
     let mut positional = Vec::new();
     let mut any = false;
     let mut sort = None;
     let mut limit = None;
     let mut no_track = false;
     let mut yes = false;
+    let mut clear_tags = false;
     let mut lang_seen = false;
     while let Some(arg) = parser.next()? {
         match arg {
@@ -181,17 +204,11 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 }
                 dir = Some(PathBuf::from(path));
             }
-            Short('m') | Long("message") => {
-                if message.is_some() {
-                    return Err(crate::i18n::text(
-                        "-m 只能指定一次",
-                        "-m may only be specified once",
-                    )
-                    .into());
-                }
-                message = Some(parser.value()?.string()?);
+            Short('t') | Long("tag") => {
+                tags_seen = true;
+                tags.push(parser.value()?.string()?);
             }
-            Short('t') | Long("tag") => tags.push(parser.value()?.string()?),
+            Long("clear-tags") => clear_tags = true,
             Long("any") => any = true,
             Long("no-track") => no_track = true,
             Short('y') | Long("yes") => yes = true,
@@ -239,142 +256,215 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     }
     let tags = normalize_tags(tags)?;
     let list_options = any || sort.is_some() || limit.is_some();
-    let command = if let Some(content) = message {
-        if !positional.is_empty() || list_options || no_track || yes {
-            return Err(crate::i18n::text(
-                "-m 不能与子命令、列表选项或 --no-track 同时使用",
-                "-m cannot be combined with subcommands, list options, or --no-track",
-            )
-            .into());
+    let command = match positional.first().map(String::as_str).unwrap_or("list") {
+        "add" if positional.len() == 2 => {
+            reject(
+                list_options || no_track || yes || clear_tags,
+                "add 不接受该选项",
+                "This option is not valid with add",
+            )?;
+            Command::Add {
+                content: positional.pop().unwrap(),
+                tags,
+            }
         }
-        Command::Add { content, tags }
-    } else {
-        match positional.first().map(String::as_str).unwrap_or("list") {
-            "list" if positional.len() <= 1 => {
-                if no_track || yes {
+        "edit" if matches!(positional.len(), 2 | 3) => {
+            reject(
+                list_options || no_track || yes,
+                "edit 不接受列表、浏览或确认选项",
+                "List, tracking, and confirmation options are not valid with edit",
+            )?;
+            if clear_tags && tags_seen {
+                return Err(crate::i18n::text(
+                    "--clear-tags 不能与 -t 同时使用",
+                    "--clear-tags cannot be combined with -t",
+                )
+                .into());
+            }
+            let content = if positional.len() == 3 {
+                Some(positional.pop().unwrap())
+            } else {
+                None
+            };
+            if content.is_none() && !tags_seen && !clear_tags {
+                return Err(crate::i18n::text(
+                    "edit 需要新正文、-t 或 --clear-tags",
+                    "edit requires new content, -t, or --clear-tags",
+                )
+                .into());
+            }
+            let prefix = positional.pop().unwrap().to_ascii_lowercase();
+            validate_id_prefix(&prefix)?;
+            Command::Edit {
+                prefix,
+                content,
+                tags: if tags_seen {
+                    Some(tags)
+                } else if clear_tags {
+                    Some(Vec::new())
+                } else {
+                    None
+                },
+            }
+        }
+        "list" if positional.len() <= 1 => {
+            if no_track || yes || clear_tags {
+                return Err(crate::i18n::text(
+                    "--no-track 仅用于 show",
+                    "--no-track is only valid with show",
+                )
+                .into());
+            }
+            if any && tags.is_empty() {
+                return Err(crate::i18n::text(
+                    "--any 需要至少一个 -t 标签",
+                    "--any requires at least one -t tag",
+                )
+                .into());
+            }
+            Command::List {
+                tags,
+                any,
+                sort: sort.unwrap_or(Sort::Time),
+                limit: limit.unwrap_or(20),
+            }
+        }
+        "search" if positional.len() == 2 => {
+            if no_track || yes || clear_tags {
+                return Err(crate::i18n::text(
+                    "--no-track 和 --yes 不能用于 search",
+                    "--no-track and --yes are not valid with search",
+                )
+                .into());
+            }
+            if any && tags.is_empty() {
+                return Err(crate::i18n::text(
+                    "--any 需要至少一个 -t 标签",
+                    "--any requires at least one -t tag",
+                )
+                .into());
+            }
+            let query = positional.pop().unwrap();
+            if query.trim().is_empty() {
+                return Err(crate::i18n::text(
+                    "搜索关键词不能为空",
+                    "The search query must not be empty",
+                )
+                .into());
+            }
+            Command::Search {
+                query,
+                tags,
+                any,
+                sort: sort.unwrap_or(Sort::Time),
+                limit: limit.unwrap_or(20),
+            }
+        }
+        "show" | "delete" if positional.len() == 2 => {
+            if list_options || tags_seen || clear_tags {
+                return Err(crate::i18n::text(
+                    "show/delete 不接受列表或标签选项",
+                    "show/delete do not accept list or tag options",
+                )
+                .into());
+            }
+            let value = positional.pop().unwrap().to_ascii_lowercase();
+            if positional[0] == "delete" {
+                if no_track {
                     return Err(crate::i18n::text(
                         "--no-track 仅用于 show",
                         "--no-track is only valid with show",
                     )
                     .into());
                 }
-                if any && tags.is_empty() {
-                    return Err(crate::i18n::text(
-                        "--any 需要至少一个 -t 标签",
-                        "--any requires at least one -t tag",
-                    )
-                    .into());
-                }
-                Command::List {
-                    tags,
-                    any,
-                    sort: sort.unwrap_or(Sort::Time),
-                    limit: limit.unwrap_or(20),
-                }
-            }
-            "search" if positional.len() == 2 => {
-                if no_track || yes {
-                    return Err(crate::i18n::text(
-                        "--no-track 和 --yes 不能用于 search",
-                        "--no-track and --yes are not valid with search",
-                    )
-                    .into());
-                }
-                if any && tags.is_empty() {
-                    return Err(crate::i18n::text(
-                        "--any 需要至少一个 -t 标签",
-                        "--any requires at least one -t tag",
-                    )
-                    .into());
-                }
-                let query = positional.pop().unwrap();
-                if query.trim().is_empty() {
-                    return Err(crate::i18n::text(
-                        "搜索关键词不能为空",
-                        "The search query must not be empty",
-                    )
-                    .into());
-                }
-                Command::Search {
-                    query,
-                    tags,
-                    any,
-                    sort: sort.unwrap_or(Sort::Time),
-                    limit: limit.unwrap_or(20),
-                }
-            }
-            "show" | "delete" if positional.len() == 2 => {
-                if list_options || !tags.is_empty() {
-                    return Err(crate::i18n::text(
-                        "show/delete 不接受列表或标签选项",
-                        "show/delete do not accept list or tag options",
-                    )
-                    .into());
-                }
-                let value = positional.pop().unwrap().to_ascii_lowercase();
-                if positional[0] == "delete" {
-                    if no_track {
-                        return Err(crate::i18n::text(
-                            "--no-track 仅用于 show",
-                            "--no-track is only valid with show",
-                        )
-                        .into());
-                    }
-                    let target = match value.as_str() {
-                        "today" => DeleteTarget::Today,
-                        "all" => DeleteTarget::All,
-                        _ => {
-                            validate_id_prefix(&value)?;
-                            if yes {
-                                return Err(crate::i18n::text(
-                                    "--yes 仅用于 delete today/all",
-                                    "--yes is only valid with delete today/all",
-                                )
-                                .into());
-                            }
-                            DeleteTarget::Id(value)
+                let target = match value.as_str() {
+                    "today" => DeleteTarget::Today,
+                    "all" => DeleteTarget::All,
+                    _ => {
+                        validate_id_prefix(&value)?;
+                        if yes {
+                            return Err(crate::i18n::text(
+                                "--yes 仅用于 delete today/all",
+                                "--yes is only valid with delete today/all",
+                            )
+                            .into());
                         }
-                    };
-                    Command::Delete { target, yes }
-                } else {
-                    if yes {
-                        return Err(crate::i18n::text(
-                            "--yes 仅用于 delete today/all",
-                            "--yes is only valid with delete today/all",
-                        )
-                        .into());
+                        DeleteTarget::Id(value)
                     }
-                    validate_id_prefix(&value)?;
-                    Command::Show {
-                        prefix: value,
-                        track: !no_track,
-                    }
-                }
-            }
-            "tags" | "doctor" if positional.len() == 1 => {
-                if list_options || no_track || yes || !tags.is_empty() {
+                };
+                Command::Delete { target, yes }
+            } else {
+                if yes {
                     return Err(crate::i18n::text(
-                        "该子命令不接受列表、标签或浏览选项",
-                        "This subcommand does not accept list, tag, or tracking options",
+                        "--yes 仅用于 delete today/all",
+                        "--yes is only valid with delete today/all",
                     )
                     .into());
                 }
-                if positional[0] == "tags" {
-                    Command::Tags
-                } else {
-                    Command::Doctor
+                validate_id_prefix(&value)?;
+                Command::Show {
+                    prefix: value,
+                    track: !no_track,
                 }
             }
-            _ => {
+        }
+        "trash" if positional.len() == 1 || (positional.len() == 2 && positional[1] == "empty") => {
+            reject(
+                list_options || no_track || tags_seen || clear_tags,
+                "trash 不接受列表、标签或浏览选项",
+                "List, tag, and tracking options are not valid with trash",
+            )?;
+            let empty = positional.len() == 2;
+            if yes && !empty {
                 return Err(crate::i18n::text(
-                    "未知命令或缺少参数；运行 inbox --help 查看用法",
-                    "Unknown command or missing argument; run inbox --help for usage",
+                    "--yes 仅用于 trash empty 或批量删除",
+                    "--yes is only valid with trash empty or bulk deletion",
                 )
                 .into());
             }
+            Command::Trash { empty, yes }
+        }
+        "restore" if positional.len() == 2 => {
+            reject(
+                list_options || no_track || yes || tags_seen || clear_tags,
+                "restore 不接受其它选项",
+                "restore does not accept these options",
+            )?;
+            let prefix = positional.pop().unwrap().to_ascii_lowercase();
+            validate_id_prefix(&prefix)?;
+            Command::Restore { prefix }
+        }
+        "tags" | "doctor" if positional.len() == 1 => {
+            if list_options || no_track || yes || tags_seen || clear_tags {
+                return Err(crate::i18n::text(
+                    "该子命令不接受列表、标签或浏览选项",
+                    "This subcommand does not accept list, tag, or tracking options",
+                )
+                .into());
+            }
+            if positional[0] == "tags" {
+                Command::Tags
+            } else {
+                Command::Doctor
+            }
+        }
+        _ => {
+            return Err(crate::i18n::text(
+                "未知命令或缺少参数；运行 inbox --help 查看用法",
+                "Unknown command or missing argument; run inbox --help for usage",
+            )
+            .into());
         }
     };
     Ok(Cli { dir, command })
+}
+
+fn reject(condition: bool, zh: &'static str, en: &'static str) -> Result<()> {
+    if condition {
+        Err(crate::i18n::text(zh, en).into())
+    } else {
+        Ok(())
+    }
 }
 
 fn validate_id_prefix(prefix: &str) -> Result<()> {

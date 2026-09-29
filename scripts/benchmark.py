@@ -108,7 +108,7 @@ def main():
             note_id = dataset(root, size)
             base = [str(binary), "--dir", str(root)]
             commands = [
-                ("新增一条", ["-m", "benchmark append", "-t", "idea"]),
+                ("新增一条", ["add", "benchmark append", "-t", "idea"]),
                 ("最近 20 条", ["list"]),
                 ("标签筛选 20 条", ["list", "-t", "topic3"]),
                 ("全文搜索 20 条", ["search", "benchmark"]),

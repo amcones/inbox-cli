@@ -3,6 +3,10 @@
 ## Unreleased
 
 - Add case-insensitive full-text body search with tag filters, time/priority sorting, and result limits.
+- Replace `-m` with the clearer `inbox add <content>` command, including stdin support via `inbox add -`.
+- Add `inbox edit` for changing note content and replacing or clearing tags while preserving identity and view history.
+- Move deleted notes into a recoverable trash, with `inbox trash`, `inbox restore`, and confirmed `inbox trash empty` commands.
+- Commit Markdown, view-log, and trash changes in the same recoverable deletion transaction.
 
 ## 0.2.2 — 2026-09-29
 

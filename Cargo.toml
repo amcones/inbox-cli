@@ -7,7 +7,7 @@ description = "A tiny, local-first Markdown inbox for fleeting ideas"
 license = "MIT"
 
 [dependencies]
-jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
+jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform"] }
 lexopt = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

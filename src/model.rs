@@ -26,14 +26,22 @@ impl Note {
         // Check the raw input before CRLF normalization. stdin is read with a
         // MAX+1 sentinel; normalizing first could hide that it was truncated.
         if content.len() > MAX_CONTENT_BYTES {
-            return Err("单条内容不能超过 1 MiB".into());
+            return Err(crate::i18n::text(
+                "单条内容不能超过 1 MiB",
+                "A note must not exceed 1 MiB",
+            )
+            .into());
         }
         let content = content.replace("\r\n", "\n");
         if content.trim().is_empty() {
-            return Err("内容不能为空".into());
+            return Err(crate::i18n::text("内容不能为空", "Content must not be empty").into());
         }
         if content.contains('\0') || content.contains('\r') {
-            return Err("内容不能包含 NUL 或单独的回车字符".into());
+            return Err(crate::i18n::text(
+                "内容不能包含 NUL 或单独的回车字符",
+                "Content must not contain NUL or standalone carriage returns",
+            )
+            .into());
         }
         let created = format!(
             "{}.{:09}{}",
@@ -75,14 +83,20 @@ pub fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>> {
             || tag.len() > 128
             || tag.chars().any(|c| c.is_whitespace() || c.is_control())
         {
-            return Err("标签需为 1–128 字节，不能包含空白或控制字符".into());
+            return Err(crate::i18n::text(
+                "标签需为 1–128 字节，不能包含空白或控制字符",
+                "Tags must be 1–128 bytes and contain no whitespace or control characters",
+            )
+            .into());
         }
         if !out.iter().any(|t| t == tag) {
             out.push(tag.to_owned());
         }
     }
     if out.len() > MAX_TAGS {
-        return Err("每条记录最多 64 个标签".into());
+        return Err(
+            crate::i18n::text("每条记录最多 64 个标签", "A note may have at most 64 tags").into(),
+        );
     }
     Ok(out)
 }
@@ -90,10 +104,18 @@ pub fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>> {
 pub fn validate_meta(meta: &Metadata) -> Result<Timestamp> {
     let id = Uuid::parse_str(&meta.id)?;
     if id.to_string() != meta.id {
-        return Err("ID 必须是小写、带连字符的 UUID".into());
+        return Err(crate::i18n::text(
+            "ID 必须是小写、带连字符的 UUID",
+            "ID must be a lowercase, hyphenated UUID",
+        )
+        .into());
     }
     if normalize_tags(meta.tags.clone())? != meta.tags {
-        return Err("标签元数据不规范或包含重复标签".into());
+        return Err(crate::i18n::text(
+            "标签元数据不规范或包含重复标签",
+            "Tag metadata is not normalized or contains duplicates",
+        )
+        .into());
     }
     // Date and HH:MM:SS occupy fixed positions; fractional seconds are optional.
     // An explicit offset is required, and Jiff validates the calendar/time.
@@ -105,7 +127,11 @@ pub fn validate_meta(meta: &Metadata) -> Result<Timestamp> {
         || (bytes.len() != 25
             && (bytes[19] != b'.' || !bytes[20..bytes.len() - 6].iter().all(u8::is_ascii_digit)))
     {
-        return Err("创建时间需为带 UTC 偏移的 RFC 3339 格式，小数秒最多 9 位".into());
+        return Err(crate::i18n::text(
+            "创建时间需为带 UTC 偏移的 RFC 3339 格式，小数秒最多 9 位",
+            "Creation time must be RFC 3339 with a UTC offset and at most 9 fractional digits",
+        )
+        .into());
     }
     Ok(meta.created.parse()?)
 }

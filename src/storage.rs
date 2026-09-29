@@ -30,7 +30,7 @@ impl Store {
         ensure_dir(&state)?;
         let (lock, _) = open_rw(&state.join("write.lock"), false)?;
         let version = state.join("format-version");
-        if exclusive || !version.try_exists()? {
+        if exclusive || !version.try_exists()? || crate::deletion::pending(&root)? {
             lock.lock()?;
             if !version.try_exists()? {
                 let (mut file, _) = open_rw(&version, false)?;
@@ -46,7 +46,25 @@ impl Store {
             lock.lock_shared()?;
         }
         if fs::read(&version)? != FORMAT {
-            return Err(format!("{}: 不支持或损坏的存储格式版本", version.display()).into());
+            return Err(crate::message!(
+                "{}: 不支持或损坏的存储格式版本",
+                "{}: unsupported or corrupt storage format version",
+                version.display()
+            )
+            .into());
+        }
+        // Check after acquiring the lock, including after each downgrade: a
+        // concurrent writer can commit and exit in the unlock/relock gap.
+        while crate::deletion::pending(&root)? {
+            if !exclusive {
+                lock.unlock()?;
+                lock.lock()?;
+            }
+            crate::deletion::recover(&root)?;
+            if !exclusive {
+                lock.unlock()?;
+                lock.lock_shared()?;
+            }
         }
         Ok(Some(Self {
             root,
@@ -57,7 +75,9 @@ impl Store {
 
     pub fn add(&self, note: &Note) -> Result<PathBuf> {
         if !self.exclusive {
-            return Err("写入需要独占锁".into());
+            return Err(
+                crate::i18n::text("写入需要独占锁", "Writing requires an exclusive lock").into(),
+            );
         }
         crate::model::validate_meta(&note.meta)?;
         let date = &note.meta.created[..10];
@@ -66,7 +86,12 @@ impl Store {
         for directory in [&year_dir, &dir] {
             ensure_dir(directory)?;
             if fs::symlink_metadata(directory)?.file_type().is_symlink() {
-                return Err(format!("{}: 日期目录不能是符号链接", directory.display()).into());
+                return Err(crate::message!(
+                    "{}: 日期目录不能是符号链接",
+                    "{}: date directories must not be symlinks",
+                    directory.display()
+                )
+                .into());
             }
         }
         let path = dir.join(format!("{date}.md"));
@@ -90,7 +115,7 @@ impl Store {
                 .and_then(|s| s.strip_suffix(" -->"))
                 .is_some_and(|s| uuid::Uuid::parse_str(s).is_ok());
             if !valid_header && !valid_end {
-                return Err(format!("{}: 尾部不完整或格式已改变，拒绝继续追加；请运行 inbox doctor 检查并保留备份后修复", path.display()).into());
+                return Err(crate::message!("{}: 尾部不完整或格式已改变，拒绝继续追加；请运行 inbox doctor 检查并保留备份后修复", "{}: incomplete tail or changed format; refusing to append; run inbox doctor and back up before repairing", path.display()).into());
             }
             if !tail.ends_with(b"\n\n") {
                 text.push('\n');
@@ -99,10 +124,20 @@ impl Store {
         text.push_str(&markdown::encode(note)?);
         // A partial write is not atomic. Its missing footer is detected on the
         // next append/read; preserve the bytes instead of silently truncating.
-        file.write_all(text.as_bytes())
-            .map_err(|e| format!("{}: 写入失败（可能留下部分记录）：{e}", path.display()))?;
-        file.sync_all()
-            .map_err(|e| format!("{}: 持久化失败，请检查记录后再重试：{e}", path.display()))?;
+        file.write_all(text.as_bytes()).map_err(|e| {
+            crate::message!(
+                "{}: 写入失败（可能留下部分记录）：{e}",
+                "{}: write failed (a partial note may remain): {e}",
+                path.display()
+            )
+        })?;
+        file.sync_all().map_err(|e| {
+            crate::message!(
+                "{}: 持久化失败，请检查记录后再重试：{e}",
+                "{}: sync failed; inspect the note before retrying: {e}",
+                path.display()
+            )
+        })?;
         if is_new {
             sync_dir(&dir)?;
         }
@@ -165,7 +200,7 @@ impl Store {
         if self.exclusive {
             Ok(())
         } else {
-            Err("写入需要独占锁".into())
+            Err(crate::i18n::text("写入需要独占锁", "Writing requires an exclusive lock").into())
         }
     }
 }
@@ -194,9 +229,12 @@ pub(crate) fn open_rw(path: &Path, append: bool) -> Result<(File, bool)> {
         Ok(file) => Ok((file, true)),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             if !fs::symlink_metadata(path)?.file_type().is_file() {
-                return Err(
-                    format!("{}: 需要普通文件，不能是符号链接或设备", path.display()).into(),
-                );
+                return Err(crate::message!(
+                    "{}: 需要普通文件，不能是符号链接或设备",
+                    "{}: expected a regular file, not a symlink or device",
+                    path.display()
+                )
+                .into());
             }
             options.create_new(false);
             Ok((

@@ -1,6 +1,7 @@
 use inbox::{
     Result,
     cli::{self, Cli, Command},
+    deletion, i18n,
     model::{MAX_CONTENT_BYTES, Note, terminal_text},
     query,
     storage::Store,
@@ -12,10 +13,14 @@ use std::{
 };
 
 fn main() -> ExitCode {
-    let cli = match cli::parse(std::env::args_os().skip(1)) {
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    let cli = match i18n::configure(&args).and_then(|_| cli::parse(args)) {
         Ok(cli) => cli,
         Err(e) => {
-            eprintln!("inbox: {e}\n运行 inbox --help 查看用法");
+            eprintln!(
+                "inbox: {e}\n{}",
+                i18n::text("运行 inbox --help 查看用法", "Run inbox --help for usage")
+            );
             return ExitCode::from(2);
         }
     };
@@ -38,7 +43,7 @@ fn run(cli: Cli) -> Result<()> {
     let mut out = io::BufWriter::new(io::stdout().lock());
     match cli.command {
         Command::Help => {
-            write!(out, "{}", cli::HELP)?;
+            write!(out, "{}", cli::help())?;
             out.flush()?;
             return Ok(());
         }
@@ -105,9 +110,14 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Show { prefix, track } => {
-            let store = Store::open(&root, false)?.ok_or("inbox 为空")?;
+            // Hold the lock until tracking is complete so deletion cannot
+            // remove this note between displaying it and recording the view.
+            if !root.try_exists()? {
+                return Err(i18n::text("inbox 为空", "The inbox is empty").into());
+            }
+            let store = Store::open(&root, track)?
+                .ok_or(crate::i18n::text("inbox 为空", "The inbox is empty"))?;
             let note = query::find(&store, &prefix)?;
-            drop(store);
             writeln!(out, "{}  {}", note.meta.id, note.meta.created)?;
             if !note.meta.tags.is_empty() {
                 writeln!(
@@ -125,10 +135,21 @@ fn run(cli: Cli) -> Result<()> {
             // Do not count a failed/broken-pipe output as a successful view.
             out.flush()?;
             if track {
-                let store = Store::open(&root, true)?.unwrap();
-                views::record(&store, &note.meta.id)
-                    .map_err(|e| format!("内容已显示，但浏览计数保存失败：{e}"))?;
+                views::record(&store, &note.meta.id).map_err(|e| {
+                    inbox::message!(
+                        "内容已显示，但浏览计数保存失败：{e}",
+                        "Content was displayed, but saving the view count failed: {e}"
+                    )
+                })?;
             }
+        }
+        Command::Delete { prefix } => {
+            if !root.try_exists()? {
+                return Err(i18n::text("inbox 为空", "The inbox is empty").into());
+            }
+            let store = Store::open(&root, true)?.unwrap();
+            let id = deletion::delete(&store, &prefix)?;
+            writeln!(out, "{}", inbox::message!("已删除 {id}", "Deleted {id}"))?;
         }
         Command::Tags => {
             if let Some(store) = Store::open(&root, false)? {
@@ -146,7 +167,11 @@ fn run(cli: Cli) -> Result<()> {
             };
             writeln!(
                 out,
-                "OK: {files} 个日期文件，{notes} 条记录，{views} 次浏览"
+                "{}",
+                inbox::message!(
+                    "OK: {files} 个日期文件，{notes} 条记录，{views} 次浏览",
+                    "OK: {files} day files, {notes} notes, {views} views"
+                )
             )?;
         }
         Command::Help | Command::Version => unreachable!(),

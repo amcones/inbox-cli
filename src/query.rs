@@ -96,14 +96,20 @@ pub fn find(store: &Store, prefix: &str) -> Result<Note> {
         store.scan_file(&path, |note| {
             if note.meta.id.starts_with(prefix) {
                 if found.is_some() {
-                    return Err(format!("ID 前缀 {prefix} 匹配多条记录，请提供更长的 ID；若完整 ID 重复，请运行 doctor").into());
+                    return Err(crate::message!("ID 前缀 {prefix} 匹配多条记录，请提供更长的 ID；若完整 ID 重复，请运行 doctor", "ID prefix {prefix} matches multiple notes; use a longer ID, or run doctor if full IDs are duplicated").into());
                 }
                 found = Some(note);
             }
             Ok(())
         })?;
     }
-    found.ok_or_else(|| format!("没有找到 ID 为 {prefix} 的记录").into())
+    found.ok_or_else(|| {
+        crate::message!(
+            "没有找到 ID 为 {prefix} 的记录",
+            "No note found for ID {prefix}"
+        )
+        .into()
+    })
 }
 
 pub fn tags(store: &Store) -> Result<BTreeMap<String, u64>> {
@@ -125,7 +131,9 @@ pub fn doctor(store: &Store) -> Result<(usize, usize, u64)> {
     for path in &files {
         store.scan_file(path, |note| {
             if !ids.insert(note.meta.id.clone()) {
-                return Err(format!("重复的 ID：{}", note.meta.id).into());
+                return Err(
+                    crate::message!("重复的 ID：{}", "Duplicate ID: {}", note.meta.id).into(),
+                );
             }
             Ok(())
         })?;
@@ -133,7 +141,11 @@ pub fn doctor(store: &Store) -> Result<(usize, usize, u64)> {
     let counts = views::counts(store)?;
     for id in counts.keys() {
         if !ids.contains(id) {
-            return Err(format!("浏览日志引用了不存在的记录：{id}").into());
+            return Err(crate::message!(
+                "浏览日志引用了不存在的记录：{id}",
+                "The view log references a missing note: {id}"
+            )
+            .into());
         }
     }
     Ok((

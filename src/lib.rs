@@ -1,4 +1,6 @@
 pub mod cli;
+pub mod deletion;
+pub mod i18n;
 pub mod markdown;
 pub mod model;
 pub mod query;

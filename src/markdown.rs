@@ -43,11 +43,15 @@ pub fn scan(
     let date = path
         .file_stem()
         .and_then(|s| s.to_str())
-        .ok_or("无效的日期文件名")?;
+        .ok_or(crate::i18n::text(
+            "无效的日期文件名",
+            "Invalid day filename",
+        ))?;
     let header = format!("# {date}");
     let fail = |line: usize, message: &str| -> Box<dyn std::error::Error> {
-        format!(
+        crate::message!(
             "{}:{line}: {message}；文件未被修改，请保留备份后修复",
+            "{}:{line}: {message}; the file was not modified; back it up before repairing",
             path.display()
         )
         .into()
@@ -69,7 +73,13 @@ pub fn scan(
         let line = line.strip_suffix('\r').unwrap_or(line);
         if !saw_header {
             if line != header {
-                return Err(fail(line_number, "缺少或不匹配的日期标题"));
+                return Err(fail(
+                    line_number,
+                    crate::i18n::text(
+                        "缺少或不匹配的日期标题",
+                        "Missing or mismatched date heading",
+                    ),
+                ));
             }
             saw_header = true;
             continue;
@@ -79,18 +89,30 @@ pub fn scan(
                 == Some(note.meta.id.as_str())
             {
                 if !terminated {
-                    return Err(fail(line_number, "结束标记缺少换行，可能是中断写入"));
+                    return Err(fail(
+                        line_number,
+                        crate::i18n::text(
+                            "结束标记缺少换行，可能是中断写入",
+                            "End marker has no newline; a write may have been interrupted",
+                        ),
+                    ));
                 }
                 if body_lines == 0 || note.content.trim().is_empty() {
-                    return Err(fail(line_number, "记录内容为空"));
+                    return Err(fail(
+                        line_number,
+                        crate::i18n::text("记录内容为空", "The note content is empty"),
+                    ));
                 }
                 visit(pending.take().unwrap())?;
                 body_lines = 0;
             } else if body_lines == 0 {
                 let prefix = format!("- {} ", &note.meta.created[11..19]);
-                let body = line
-                    .strip_prefix(&prefix)
-                    .ok_or_else(|| fail(line_number, "列表首行格式不正确"))?;
+                let body = line.strip_prefix(&prefix).ok_or_else(|| {
+                    fail(
+                        line_number,
+                        crate::i18n::text("列表首行格式不正确", "Invalid first line of a note"),
+                    )
+                })?;
                 note.content.push_str(body);
                 body_lines += 1;
             } else if let Some(body) = line.strip_prefix("  ") {
@@ -104,7 +126,10 @@ pub fn scan(
             } else {
                 return Err(fail(
                     line_number,
-                    "条目缺少结束标记，或正文续行未缩进两个空格",
+                    crate::i18n::text(
+                        "条目缺少结束标记，或正文续行未缩进两个空格",
+                        "Missing end marker, or continuation line is not indented by two spaces",
+                    ),
                 ));
             }
         } else if line.is_empty() {
@@ -113,11 +138,21 @@ pub fn scan(
             .strip_prefix(START)
             .and_then(|s| s.strip_suffix(" -->"))
         {
-            let meta: Metadata = serde_json::from_str(json)
-                .map_err(|e| fail(line_number, &format!("元数据无效：{e}")))?;
+            let meta: Metadata = serde_json::from_str(json).map_err(|e| {
+                fail(
+                    line_number,
+                    &crate::message!("元数据无效：{e}", "Invalid metadata: {e}"),
+                )
+            })?;
             let timestamp = validate_meta(&meta).map_err(|e| fail(line_number, &e.to_string()))?;
             if &meta.created[..10] != date {
-                return Err(fail(line_number, "创建日期与文件名不一致"));
+                return Err(fail(
+                    line_number,
+                    crate::i18n::text(
+                        "创建日期与文件名不一致",
+                        "Creation date does not match the filename",
+                    ),
+                ));
             }
             pending = Some(Note {
                 meta,
@@ -125,14 +160,23 @@ pub fn scan(
                 content: String::new(),
             });
         } else {
-            return Err(fail(line_number, "无法识别的内容或元数据"));
+            return Err(fail(
+                line_number,
+                crate::i18n::text("无法识别的内容或元数据", "Unrecognized content or metadata"),
+            ));
         }
     }
     if !saw_header {
-        return Err(fail(1, "空的日期文件"));
+        return Err(fail(1, crate::i18n::text("空的日期文件", "Empty day file")));
     }
     if pending.is_some() {
-        return Err(fail(last_line, "文件尾部存在未完成的记录"));
+        return Err(fail(
+            last_line,
+            crate::i18n::text(
+                "文件尾部存在未完成的记录",
+                "Incomplete note at the end of the file",
+            ),
+        ));
     }
     Ok(())
 }
@@ -183,7 +227,7 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(err.to_string().contains("未完成"));
+        assert!(err.to_string().contains("Incomplete"));
         assert_eq!(count, 0);
     }
 }

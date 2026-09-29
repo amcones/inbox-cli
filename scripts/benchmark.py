@@ -93,6 +93,7 @@ def main():
     lines = ["# 性能测量", "", f"测量日期：{dt.datetime.now().astimezone().isoformat(timespec='seconds')}", "",
              f"- 平台：{platform.system()} {platform.release()} / {platform.machine()}",
              f"- Rust：{subprocess.check_output(['rustc', '--version'], text=True).strip()}",
+             f"- 应用：{subprocess.check_output([str(binary), '--version'], text=True).strip()}",
              f"- 二进制：`{binary.name}`，{binary.stat().st_size:,} bytes（{binary.stat().st_size / 1024**2:.2f} MiB）。",
              f"- 每组预热 5 次，再采样 {args.samples} 次；每次启动新进程。",
              "- 包含 Python 发起子进程的开销、启动、操作、退出；输出重定向，不包含终端绘制。",

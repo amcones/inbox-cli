@@ -52,6 +52,11 @@ fn run(cli: Cli) -> Result<()> {
             out.flush()?;
             return Ok(());
         }
+        Command::Completions { shell } => {
+            write!(out, "{shell}")?;
+            out.flush()?;
+            return Ok(());
+        }
         _ => (),
     }
     let root = cli::data_dir(cli.dir)?;
@@ -121,6 +126,16 @@ fn run(cli: Cli) -> Result<()> {
             };
             for note in notes {
                 write_summary(&mut out, &note)?;
+            }
+        }
+        Command::Review { limit } => {
+            let now = jiff::Timestamp::now();
+            let items = match Store::open(&root, false)? {
+                Some(store) => query::review(&store, limit, now)?,
+                None => Vec::new(),
+            };
+            for item in items {
+                write_review(&mut out, &item, now)?;
             }
         }
         Command::Show { prefix, track } => {
@@ -326,7 +341,7 @@ fn run(cli: Cli) -> Result<()> {
                 )
             )?;
         }
-        Command::Help | Command::Version => unreachable!(),
+        Command::Help | Command::Version | Command::Completions { .. } => unreachable!(),
     }
     out.flush()?;
     Ok(())
@@ -363,6 +378,39 @@ fn write_summary_body(out: &mut impl Write, note: &Note) -> Result<()> {
         summary,
         if tags.is_empty() { "" } else { "  " },
         tags
+    )?;
+    Ok(())
+}
+
+fn write_review(
+    out: &mut impl Write,
+    item: &query::ReviewItem,
+    now: jiff::Timestamp,
+) -> Result<()> {
+    write_summary(out, &item.note)?;
+    let age_seconds = (now.as_second() - item.note.timestamp.as_second()).max(0);
+    let age_days = age_seconds / 86_400;
+    let time_reason = if age_days <= 14 {
+        i18n::text("近期", "recent").to_owned()
+    } else {
+        inbox::message!("相对较新（{age_days} 天）", "newer ({age_days} days old)")
+    };
+    let view_reason = match item.views {
+        0 => None,
+        1 => Some(i18n::text("看过 1 次", "viewed once").to_owned()),
+        count => Some(inbox::message!(
+            "常看（{count} 次）",
+            "frequently viewed ({count} times)"
+        )),
+    };
+    let reasons = match view_reason {
+        Some(reason) => inbox::message!("{time_reason}；{reason}", "{time_reason}; {reason}"),
+        None => time_reason,
+    };
+    writeln!(
+        out,
+        "  {}",
+        inbox::message!("原因：{reasons}", "Reason: {reasons}")
     )?;
     Ok(())
 }

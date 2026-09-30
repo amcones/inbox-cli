@@ -7,7 +7,13 @@ use std::{
 
 struct Ranked {
     score: f64,
+    views: u64,
     note: Note,
+}
+
+pub struct ReviewItem {
+    pub note: Note,
+    pub views: u64,
 }
 
 impl PartialEq for Ranked {
@@ -38,7 +44,10 @@ pub fn list(
     limit: usize,
     now: Timestamp,
 ) -> Result<Vec<Note>> {
-    select(store, tags, any, sort, limit, now, None)
+    Ok(select(store, tags, any, sort, limit, now, None)?
+        .into_iter()
+        .map(|ranked| ranked.note)
+        .collect())
 }
 
 pub fn search(
@@ -51,7 +60,20 @@ pub fn search(
     now: Timestamp,
 ) -> Result<Vec<Note>> {
     let query = query.to_lowercase();
-    select(store, tags, any, sort, limit, now, Some(&query))
+    Ok(select(store, tags, any, sort, limit, now, Some(&query))?
+        .into_iter()
+        .map(|ranked| ranked.note)
+        .collect())
+}
+
+pub fn review(store: &Store, limit: usize, now: Timestamp) -> Result<Vec<ReviewItem>> {
+    Ok(select(store, &[], false, Sort::Priority, limit, now, None)?
+        .into_iter()
+        .map(|ranked| ReviewItem {
+            note: ranked.note,
+            views: ranked.views,
+        })
+        .collect())
 }
 
 fn select(
@@ -62,7 +84,7 @@ fn select(
     limit: usize,
     now: Timestamp,
     query: Option<&str>,
-) -> Result<Vec<Note>> {
+) -> Result<Vec<Ranked>> {
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -92,15 +114,16 @@ fn select(
             if note.matches(tags, any)
                 && query.is_none_or(|query| note.content.to_lowercase().contains(query))
             {
+                let note_views = *counts.get(&note.meta.id).unwrap_or(&0);
                 let score = match sort {
                     Sort::Time => 0.0,
-                    Sort::Priority => ranking::score(
-                        note.timestamp,
-                        *counts.get(&note.meta.id).unwrap_or(&0),
-                        now,
-                    ),
+                    Sort::Priority => ranking::score(note.timestamp, note_views, now),
                 };
-                let ranked = Ranked { score, note };
+                let ranked = Ranked {
+                    score,
+                    views: note_views,
+                    note,
+                };
                 if top.len() < limit {
                     top.push(Reverse(ranked));
                 } else if ranked > top.peek().unwrap().0 {
@@ -110,11 +133,7 @@ fn select(
             Ok(())
         })?;
     }
-    Ok(top
-        .into_sorted_vec()
-        .into_iter()
-        .map(|r| r.0.note)
-        .collect())
+    Ok(top.into_sorted_vec().into_iter().map(|r| r.0).collect())
 }
 
 pub fn find(store: &Store, prefix: &str) -> Result<Note> {

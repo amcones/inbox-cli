@@ -138,12 +138,16 @@ pub fn scan(
             .strip_prefix(START)
             .and_then(|s| s.strip_suffix(" -->"))
         {
-            let meta: Metadata = serde_json::from_str(json).map_err(|e| {
+            let mut meta: Metadata = serde_json::from_str(json).map_err(|e| {
                 fail(
                     line_number,
                     &crate::message!("元数据无效：{e}", "Invalid metadata: {e}"),
                 )
             })?;
+            // v0.3 and earlier preserved ASCII case in stored tags. Read those
+            // records case-insensitively; future writes use the canonical form.
+            meta.tags = crate::model::normalize_tags(meta.tags)
+                .map_err(|e| fail(line_number, &e.to_string()))?;
             let timestamp = validate_meta(&meta).map_err(|e| fail(line_number, &e.to_string()))?;
             if &meta.created[..10] != date {
                 return Err(fail(

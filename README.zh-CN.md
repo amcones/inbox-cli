@@ -35,11 +35,25 @@ inbox --version
 
 确保 `~/.local/bin` 已在 `PATH` 中。Windows 解压 ZIP 后，将 `inbox.exe` 所在目录加入 `PATH`，在 PowerShell 中运行 `inbox --version`。
 
-也可以使用 Rust 1.89 或更新版本从源码安装：
+使用 Rust 1.89 或更新版本时，也可以克隆仓库，通过脚本编译或安装：
 
 ```bash
-cargo install --git https://github.com/amcones/inbox-cli --tag v0.3.0 --locked
+git clone https://github.com/amcones/inbox-cli
+cd inbox-cli
+./scripts/build.sh
+./scripts/install.sh
 ```
+
+Unix 安装脚本默认将程序放到 `~/.local/bin`，并为检测到的 Bash、Zsh 或 Fish 安装补全。可通过 `--bin-dir` 和 `--shell` 修改，运行 `./scripts/install.sh --help` 查看参数。Windows 使用：
+
+```powershell
+git clone https://github.com/amcones/inbox-cli
+Set-Location inbox-cli
+.\scripts\build.ps1
+.\scripts\install.ps1
+```
+
+PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，并在同一目录生成 `inbox-completion.ps1`。如果安装目录尚未加入 `PATH`，脚本会提示。也可使用 `cargo install --git https://github.com/amcones/inbox-cli --tag v0.4.0 --locked` 直接安装已发布的源码版本。
 
 ## 记录、查找和完善
 
@@ -50,6 +64,8 @@ inbox                              # 最近 20 条
 inbox search '阅读模式'              # 搜索完整正文，不区分大小写
 inbox list -t 产品 -n 5              # 此标签下最近 5 条
 inbox list --sort priority          # 近期或经常查看的灵感
+inbox review                        # 回顾 5 条优先候选并显示原因
+inbox review -n 3                   # 将候选限制为 3 条
 ```
 
 新增后会输出短 ID。将下面的 ID 替换为实际值：
@@ -72,7 +88,30 @@ inbox edit a83f912b --clear-tags
 | 查看但不计浏览次数 | `inbox show <ID> --no-track` |
 | 完整用法 | `inbox --help` |
 
-标签区分大小写，自动去重并去掉开头的 `#`；正文中的 `#文字` 不会自动变成标签。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表和搜索不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
+标签中的英文字母统一转换为小写，因此 `Rust`、`RUST` 和 `rust` 是同一个标签；同时自动去重并去掉开头的 `#`。正文中的 `#文字` 不会自动变成标签。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表、搜索和回顾不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
+
+## 命令补全
+
+安装脚本会自动生成补全。手动安装时，可为当前 shell 生成一次补全脚本，然后重启 shell。Zsh 示例：
+
+```bash
+mkdir -p ~/.zfunc
+inbox completions zsh > ~/.zfunc/_inbox
+echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+Bash 可在 shell 配置中加载生成的脚本；Fish 与 PowerShell 可直接加载对应脚本：
+
+```bash
+inbox completions bash > ~/.inbox-completion.bash
+echo 'source ~/.inbox-completion.bash' >> ~/.bashrc
+mkdir -p ~/.config/fish/completions
+inbox completions fish > ~/.config/fish/completions/inbox.fish
+inbox completions powershell > inbox-completion.ps1
+```
+
+PowerShell 用户需在配置文件中点加载 `inbox-completion.ps1`。支持的名称是 `bash`、`zsh`、`fish` 和 `powershell`。
 
 ## 删除与恢复
 
@@ -101,7 +140,7 @@ inbox --lang zh --help
 inbox --lang en --help
 ```
 
-语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。v0.3.0 使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。
+语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。从 v0.3.0 开始使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。
 
 **备份整个数据目录，包括 `.inbox`**，其中包含浏览历史和回收站。复制前先停止 inbox 命令。隐藏文件不等于加密；不要再用不支持回收站的旧版本操作同一个库。
 

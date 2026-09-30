@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**Minimalist CLI inspired note-taking tool.**
+**Minimalist CLI idea-taking tool.**
 
 inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped by day. It runs when you call it, with no account or background service.
 
@@ -35,11 +35,25 @@ inbox --version
 
 Ensure `~/.local/bin` is in your `PATH`. On Windows, extract the ZIP, add the folder containing `inbox.exe` to `PATH`, and run `inbox --version` in PowerShell.
 
-With Rust 1.89 or newer, you can also install from source:
+With Rust 1.89 or newer, clone the repository and use the build or install script:
 
 ```bash
-cargo install --git https://github.com/amcones/inbox-cli --tag v0.3.0 --locked
+git clone https://github.com/amcones/inbox-cli
+cd inbox-cli
+./scripts/build.sh
+./scripts/install.sh
 ```
+
+The Unix installer puts the binary in `~/.local/bin` and installs completion for the detected Bash, Zsh, or Fish shell. Override these choices with `--bin-dir` and `--shell`; run `./scripts/install.sh --help` for details. On Windows:
+
+```powershell
+git clone https://github.com/amcones/inbox-cli
+Set-Location inbox-cli
+.\scripts\build.ps1
+.\scripts\install.ps1
+```
+
+The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox` and writes `inbox-completion.ps1` beside the executable. Both installers report when their binary directory still needs to be added to `PATH`. To install a published source revision directly with Cargo, use `cargo install --git https://github.com/amcones/inbox-cli --tag v0.4.0 --locked`.
 
 ## Capture, find, and refine
 
@@ -50,6 +64,8 @@ inbox                              # Recent 20 notes
 inbox search 'reading mode'         # Case-insensitive body search
 inbox list -t product -n 5          # Five recent notes with this tag
 inbox list --sort priority          # Recent and frequently viewed ideas
+inbox review                        # Five priority candidates with reasons
+inbox review -n 3                   # Limit the review to three candidates
 ```
 
 `add` prints a short ID. Use that ID in the following examples:
@@ -72,7 +88,30 @@ Editing preserves the ID, creation time, and view count. Omit tag options to kee
 | Read without counting a view | `inbox show <ID> --no-track` |
 | Full usage | `inbox --help` |
 
-Tags are case-sensitive; duplicates and leading `#` are normalized. A `#word` inside the body is ordinary text. Only successful `show` output counts as a view, including output redirected to a file. Lists and searches do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
+ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust` are the same tag. Duplicates and leading `#` are also normalized. A `#word` inside the body is ordinary text. Only successful `show` output counts as a view, including output redirected to a file. Lists, searches, and reviews do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
+
+## Command completion
+
+The install scripts generate completion automatically. For a manual installation, generate completion for your shell once, then restart the shell. For Zsh:
+
+```bash
+mkdir -p ~/.zfunc
+inbox completions zsh > ~/.zfunc/_inbox
+echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+For Bash, source the generated script from your shell configuration. Fish and PowerShell can load the generated script directly:
+
+```bash
+inbox completions bash > ~/.inbox-completion.bash
+echo 'source ~/.inbox-completion.bash' >> ~/.bashrc
+mkdir -p ~/.config/fish/completions
+inbox completions fish > ~/.config/fish/completions/inbox.fish
+inbox completions powershell > inbox-completion.ps1
+```
+
+For PowerShell, dot-source `inbox-completion.ps1` from your profile. Supported shell names are `bash`, `zsh`, `fish`, and `powershell`.
 
 ## Delete and recover
 
@@ -101,7 +140,7 @@ inbox --lang en --help
 inbox --lang zh --help
 ```
 
-Language precedence is `--lang` > `INBOX_LANG` > system language. Choose `auto`, `en`, or `zh`; unsupported system languages fall back to English. Body text and tags are never translated. In v0.3.0, use `add` instead of the old `-m` capture option. For body text starting with a dash, put options first and use `--`, for example `inbox add -- '--an idea'`.
+Language precedence is `--lang` > `INBOX_LANG` > system language. Choose `auto`, `en`, or `zh`; unsupported system languages fall back to English. Body text and tags are never translated. Since v0.3.0, use `add` instead of the old `-m` capture option. For body text starting with a dash, put options first and use `--`, for example `inbox add -- '--an idea'`.
 
 **Back up the entire data directory, including `.inbox`.** It holds view history and trash. Stop inbox commands before copying a backup. Hidden files are not encrypted. Avoid using older versions that do not support trash on the same library.
 

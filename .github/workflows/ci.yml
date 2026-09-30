@@ -43,3 +43,18 @@ jobs:
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
       - run: cargo build --release --locked
+      - name: Verify build and install scripts
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bash -n scripts/build.sh scripts/install.sh
+          scripts/build.sh
+          scripts/install.sh --no-build --shell none --bin-dir "$RUNNER_TEMP/inbox-bin"
+          "$RUNNER_TEMP/inbox-bin/inbox" --version
+      - name: Verify Windows build and install scripts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/build.ps1
+          ./scripts/install.ps1 -NoBuild -Shell none -BinDir "$env:RUNNER_TEMP\inbox-bin"
+          & "$env:RUNNER_TEMP\inbox-bin\inbox.exe" --version

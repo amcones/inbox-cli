@@ -61,7 +61,7 @@ The benchmark creates disposable libraries and includes process launch, operatio
 
 ## CI and releases
 
-PRs targeting `main` or `develop` run formatting, Clippy, tests, release builds, and script checks on macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64. A separate `Rust 1.89` job checks the MSRV. The platform jobs remain parallel for coverage, but the repository rulesets require only the final `CI gate` check; it fails unless the MSRV and every platform job succeed. The PR workflow builds binaries but does not upload PR build artifacts.
+PRs targeting `main` or `develop` run a source-branch policy, formatting, Clippy, tests, release builds, and script checks on macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64. A separate `Rust 1.89` job checks the MSRV. A PR targeting `main` must have `develop` as its head branch; feature branches target `develop`. The platform jobs remain parallel for coverage, but the repository rulesets require only the final `CI gate` check; it fails unless the source policy, MSRV, and every platform job succeed. The PR workflow builds binaries but does not upload PR build artifacts.
 
 After the maintainer merges release preparation, an explicitly authorized `vMAJOR.MINOR.PATCH` tag triggers the release workflow. It verifies the Cargo version, changelog entry, and membership in `main`, then builds five native archives with SHA-256 files. Publication creates a draft, uploads all ten assets, then makes the release public. Read-only permissions are the default; only publication receives contents write access.
 

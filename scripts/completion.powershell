@@ -1,7 +1,7 @@
 Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $commands = @('add','edit','list','search','review','show','delete','trash','restore','backup','tags','doctor','help')
+    $commands = @('add','edit','list','search','review','show','delete','trash','restore','backup','tags','info','doctor','help')
     $elements = @($commandAst.CommandElements | ForEach-Object { $_.Value })
     $subcommand = $elements | Where-Object { $_ -in $commands } | Select-Object -First 1
     $previous = if ($elements.Count -ge 2) { $elements[-2] } else { '' }
@@ -67,6 +67,7 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
             'delete' { Complete-Values ((Inbox-Values 'active-ids') + @('today','range','all')) 'delete target'; return }
             'trash' { Complete-Values @('empty') 'trash action'; return }
             'backup' {
+                if ($elements -notcontains 'verify') { Complete-Values @('verify') 'backup action' }
                 Get-ChildItem -Directory -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
                     [System.Management.Automation.CompletionResult]::new($_.FullName, $_.Name, 'ProviderContainer', 'backup directory')
                 }

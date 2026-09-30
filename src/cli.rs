@@ -22,9 +22,11 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox trash                     查看回收站
   inbox restore <ID前缀>           恢复灵感
   inbox backup <目录>              创建完整、可校验的备份
+  inbox backup verify <目录>       只读检查完整备份
   inbox restore --from <备份目录>  确认后还原完整备份
   inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
+  inbox info                      显示版本、数据目录和统计
   inbox doctor                    检查全部记录和浏览日志
   inbox help                      显示帮助
 
@@ -63,9 +65,11 @@ Usage:
   inbox trash                     List trashed ideas
   inbox restore <ID-prefix>        Restore an idea
   inbox backup <directory>         Create a complete, verified backup
+  inbox backup verify <directory>  Verify a complete backup read-only
   inbox restore --from <backup>    Restore a complete backup after confirmation
   inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
+  inbox info                      Show version, data directory, and statistics
   inbox doctor                    Check all notes and the view log
   inbox help                      Show help
 
@@ -144,11 +148,15 @@ pub enum Command {
     Backup {
         destination: PathBuf,
     },
+    VerifyBackup {
+        source: PathBuf,
+    },
     RestoreBackup {
         source: PathBuf,
         yes: bool,
     },
     Tags,
+    Info,
     Doctor,
     Complete {
         kind: CompletionKind,
@@ -626,7 +634,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             }
             Command::Trash { empty, yes }
         }
-        "backup" if positional.len() == 2 => {
+        "backup" if positional.len() == 2 && positional[1] != "verify" => {
             reject(
                 unrelated || yes || from.is_some(),
                 "backup 不接受其它选项",
@@ -634,6 +642,16 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             )?;
             Command::Backup {
                 destination: PathBuf::from(positional.pop().unwrap()),
+            }
+        }
+        "backup" if positional.len() == 3 && positional[1] == "verify" => {
+            reject(
+                unrelated || yes || from.is_some(),
+                "backup verify 不接受其它选项",
+                "backup verify does not accept these options",
+            )?;
+            Command::VerifyBackup {
+                source: PathBuf::from(positional.pop().unwrap()),
             }
         }
         "restore" if positional.len() == 1 && from.is_some() => {
@@ -657,7 +675,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             validate_id_prefix(&prefix)?;
             Command::Restore { prefix }
         }
-        "tags" | "doctor" if positional.len() == 1 => {
+        "tags" | "info" | "doctor" if positional.len() == 1 => {
             if list_options || no_track || yes || tags_seen || clear_tags || from.is_some() {
                 return Err(crate::i18n::text(
                     "该子命令不接受列表、标签或浏览选项",
@@ -665,10 +683,10 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 )
                 .into());
             }
-            if positional[0] == "tags" {
-                Command::Tags
-            } else {
-                Command::Doctor
+            match positional[0].as_str() {
+                "tags" => Command::Tags,
+                "info" => Command::Info,
+                _ => Command::Doctor,
             }
         }
         "help" if positional.len() == 1 => {

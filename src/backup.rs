@@ -42,6 +42,12 @@ pub struct RestoreResult {
     pub stats: Stats,
 }
 
+pub struct BackupInfo {
+    pub stats: Stats,
+    pub created_at: String,
+    pub inbox_version: String,
+}
+
 pub fn create(store: &Store, destination: &Path) -> Result<Stats> {
     store.require_exclusive()?;
     validate_store(store)?;
@@ -90,7 +96,7 @@ pub fn create(store: &Store, destination: &Path) -> Result<Stats> {
     result
 }
 
-pub fn validate(path: &Path) -> Result<Stats> {
+pub fn validate(path: &Path) -> Result<BackupInfo> {
     let path = absolute(path)?;
     let metadata = fs::symlink_metadata(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     if !metadata.file_type().is_dir() {
@@ -148,21 +154,21 @@ pub fn validate(path: &Path) -> Result<Stats> {
         )
         .into());
     }
-    let store = Store::open(&data, false)?.ok_or_else(|| {
-        crate::i18n::text(
-            "备份中缺少数据目录",
-            "The backup is missing its data directory",
-        )
-    })?;
+    let store = Store::open_snapshot(&data)?;
     validate_store(&store)?;
-    Ok(stats)
+    Ok(BackupInfo {
+        stats,
+        created_at: manifest.created_at,
+        inbox_version: manifest.inbox_version,
+    })
 }
 
 pub fn restore(store: &Store, source: &Path) -> Result<RestoreResult> {
     store.require_exclusive()?;
     let source = absolute(source)?;
     reject_overlapping(&store.root, &source)?;
-    let stats = validate(&source)?;
+    let info = validate(&source)?;
+    let stats = info.stats;
     let safety_backup = safety_path(&store.root)?;
     create(store, &safety_backup)?;
 

@@ -18,13 +18,13 @@ _inbox_values() {
 
 _inbox() {
   local -a commands common range_common
-  local command target
+  local command target state
   commands=(
     'add:add an idea' 'edit:edit an idea' 'list:list ideas'
     'search:search ideas' 'review:review priority candidates' 'show:show an idea'
     'delete:delete ideas or tags' 'trash:list or empty trash' 'restore:restore an idea or backup'
-    'backup:create a complete backup'
-    'tags:list tags' 'doctor:check stored data' 'help:show help'
+    'backup:create or verify a complete backup'
+    'tags:list tags' 'info:show library information' 'doctor:check stored data' 'help:show help'
   )
   common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)')
   range_common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)')
@@ -46,7 +46,10 @@ _inbox() {
     review) _arguments $common '(-n --limit)'{-n,--limit}'[maximum results]:count:(5 10 20 50 100)' ;;
     show) _arguments $common '--no-track[do not count a view]' '1:idea ID:_inbox_active' ;;
     restore) _arguments $common '--from[restore a complete backup]:backup directory:_directories' '--yes[skip full restore confirmation]' '1:trashed idea ID:_inbox_trash' ;;
-    backup) _arguments $common '1:backup directory:_directories' ;;
+    backup)
+      _arguments $common '1:backup directory or action:->backup_target' '2:backup directory:_directories'
+      [[ $state == backup_target ]] && _alternative 'action:action:(verify)' 'directory:directory:_directories'
+      ;;
     trash)
       if [[ $words[2] == empty ]]; then
         _arguments $common '(-y --yes)'{-y,--yes}'[skip confirmation]' '1:action:(empty)'
@@ -62,7 +65,7 @@ _inbox() {
       else
         _arguments $common '*'{-t,--tag}'[remove a tag]:tag:_inbox_tags' '1:target:_inbox_delete_targets'
       fi ;;
-    tags|doctor|help) _arguments $common ;;
+    tags|info|doctor|help) _arguments $common ;;
     *) _describe 'command' commands ;;
   esac
 }

@@ -34,6 +34,7 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 tar -xzf inbox-macos-aarch64.tar.gz
 mkdir -p ~/.local/bin
 install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
+install -m 755 inbox-macos-aarch64/update.sh ~/.local/bin/inbox-update
 inbox --version
 ```
 
@@ -60,7 +61,7 @@ cd inbox-cli
 ./scripts/install.sh
 ```
 
-安装脚本会把 PATH 和补全配置写入检测到的 shell 配置文件。可通过 `--bin-dir` 和 `--shell` 修改，运行 `./scripts/install.sh --help` 查看参数。
+安装脚本会把 PATH 和补全配置写入检测到的 shell 配置文件，并将 `inbox-update` 安装到程序所在目录。可通过 `--bin-dir` 和 `--shell` 修改，运行 `./scripts/install.sh --help` 查看参数。
 
 #### Windows
 
@@ -71,7 +72,7 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持久化用户 PATH，并从 PowerShell 配置文件加载补全。
+PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持久化用户 PATH、从 PowerShell 配置文件加载补全，并在同一目录安装 `inbox-update.ps1`。
 
 ### Cargo
 
@@ -80,8 +81,30 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.2 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.3 --locked
 ```
+
+## 更新
+
+通过 Release 或源码脚本安装时会同时安装更新器。更新器先验证压缩包的 SHA-256，再替换本地程序；发布包包含补全文件时，也会刷新已有的补全文件。
+
+### macOS 和 Linux
+
+```bash
+inbox-update                    # 更新到最新版
+inbox-update --version v0.4.3  # 更新到指定版本
+```
+
+如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
+
+### Windows
+
+```powershell
+inbox-update.ps1
+inbox-update.ps1 -Version v0.4.3
+```
+
+如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
 
 ## 记录、查找和完善
 
@@ -114,7 +137,7 @@ inbox edit a83f912b --clear-tags
 | 搜索与筛选组合 | `inbox search '阅读' -t 产品 --sort priority -n 5` |
 | 查看标签及数量 | `inbox tags` |
 | 查看但不计浏览次数 | `inbox show <ID> --no-track` |
-| 完整用法 | `inbox --help` |
+| 完整用法 | `inbox help` |
 
 标签中的英文字母统一转换为小写，因此 `Rust`、`RUST` 和 `rust` 是同一个标签；同时自动去重并去掉开头的 `#`。正文中的 `#文字` 不会自动变成标签。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表、搜索和回顾不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
 
@@ -135,7 +158,7 @@ inbox restore a83f912b
 inbox trash empty                   # 确认后永久清空
 ```
 
-`delete range` 省略年、月、日时使用当前本地日期，省略小时范围时使用 `0 24`。两位年份代表 2000–2099 年；匹配使用灵感记录时的日期和小时。在该命令中，`-y` 表示年份，`-h` 表示小时，请用 `--yes` 跳过确认、用 `--help` 查看帮助。
+`delete range` 省略年、月、日时使用当前本地日期，省略小时范围时使用 `0 24`。两位年份代表 2000–2099 年；匹配使用灵感记录时的日期和小时。在该命令中，`-y` 表示年份、`-h` 表示小时；请用 `--yes` 跳过确认、用 `inbox help` 查看帮助。
 
 批量删除按下 `y` 键执行，其他任意键或标准输入结束都会立即取消，无需回车。脚本可用 `--yes` 跳过提示。确认期间新增的灵感会保留。删除会清除浏览记录；恢复保留正文、标签、ID 和原创建时间，不恢复历史浏览次数。**清空回收站后无法恢复。**
 
@@ -145,8 +168,8 @@ inbox trash empty                   # 确认后永久清空
 
 ```bash
 inbox --dir ~/Notes/inbox add '一个想法'
-inbox --lang zh --help
-inbox --lang en --help
+inbox help --lang zh
+inbox help --lang en
 ```
 
 语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。从 v0.3.0 开始使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。

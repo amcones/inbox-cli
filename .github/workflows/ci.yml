@@ -137,12 +137,14 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/build.sh scripts/install.sh
+          bash -n scripts/update.sh scripts/test-update.sh
           scripts/build.sh
           scripts/install.sh \
             --no-build \
             --shell none \
             --bin-dir "$RUNNER_TEMP/inbox-bin"
           "$RUNNER_TEMP/inbox-bin/inbox" --version
+          scripts/test-update.sh
 
       - name: Verify interactive Zsh completion
         if: runner.os == 'macOS'
@@ -160,6 +162,7 @@ jobs:
             -Shell none `
             -BinDir "$env:RUNNER_TEMP\inbox-bin"
           & "$env:RUNNER_TEMP\inbox-bin\inbox.exe" --version
+          ./scripts/test-update.ps1
 
   gate:
     name: CI gate

@@ -6,7 +6,7 @@ end
 function __inbox_no_command
     set -l words (commandline -opc)
     for word in $words[2..-1]
-        if contains -- $word add edit list search review show delete trash restore tags doctor
+        if contains -- $word add edit list search review show delete trash restore tags doctor help
             return 1
         end
     end
@@ -29,10 +29,9 @@ function __inbox_complete_values
 end
 
 complete -c inbox -f
-complete -c inbox -n __inbox_no_command -a 'add edit list search review show delete trash restore tags doctor'
+complete -c inbox -n __inbox_no_command -a 'add edit list search review show delete trash restore tags doctor help'
 complete -c inbox -n __inbox_no_command -l dir -r -d 'Data directory'
 complete -c inbox -n __inbox_no_command -l lang -r -a 'auto en zh' -d 'Language'
-complete -c inbox -n __inbox_no_command -s h -l help -d 'Show help'
 complete -c inbox -n __inbox_no_command -s V -l version -d 'Show version'
 
 complete -c inbox -n '__inbox_using_command show' -a '(__inbox_complete_values active-ids)'
@@ -60,12 +59,9 @@ complete -c inbox -n '__inbox_using_command delete; and contains -- range (comma
 complete -c inbox -n '__inbox_using_command delete; and contains -- range (commandline -opc)' -s d -r -a '(seq 1 31)' -d 'Day'
 complete -c inbox -n '__inbox_using_command delete; and contains -- range (commandline -opc)' -s h -r -a '0 6 8 9 12 18 24' -d 'Hour'
 
-for cmd in add edit list search review show trash restore tags doctor
+for cmd in add edit list search review show trash restore tags doctor help
     complete -c inbox -n "__inbox_using_command $cmd" -l dir -r -d 'Data directory'
     complete -c inbox -n "__inbox_using_command $cmd" -l lang -r -a 'auto en zh' -d 'Language'
-    complete -c inbox -n "__inbox_using_command $cmd" -s h -l help -d 'Show help'
 end
 complete -c inbox -n '__inbox_using_command delete' -l dir -r -d 'Data directory'
 complete -c inbox -n '__inbox_using_command delete' -l lang -r -a 'auto en zh' -d 'Language'
-complete -c inbox -n '__inbox_using_command delete' -l help -d 'Show help'
-complete -c inbox -n '__inbox_using_command delete; and not contains -- range (commandline -opc)' -s h -d 'Show help'

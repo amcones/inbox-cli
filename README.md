@@ -34,6 +34,7 @@ Extract the archive and put the binary in your `PATH`. For example, on Apple Sil
 tar -xzf inbox-macos-aarch64.tar.gz
 mkdir -p ~/.local/bin
 install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
+install -m 755 inbox-macos-aarch64/update.sh ~/.local/bin/inbox-update
 inbox --version
 ```
 
@@ -60,7 +61,7 @@ cd inbox-cli
 ./scripts/install.sh
 ```
 
-The installer writes PATH and completion setup to the detected shell configuration. Override the destination with `--bin-dir` and `--shell`; run `./scripts/install.sh --help` for details.
+The installer writes PATH and completion setup to the detected shell configuration and installs `inbox-update` beside the binary. Override the destination with `--bin-dir` and `--shell`; run `./scripts/install.sh --help` for details.
 
 #### Windows
 
@@ -71,7 +72,7 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists that directory in the user PATH, and loads completion from the PowerShell profile.
+The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists that directory in the user PATH, loads completion from the PowerShell profile, and installs `inbox-update.ps1` beside the binary.
 
 ### Cargo
 
@@ -80,8 +81,30 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.2 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.3 --locked
 ```
+
+## Update
+
+Release and source-script installations include an updater that verifies the archive checksum before replacing the installed binary. Existing completion files are refreshed when the release contains them.
+
+### macOS and Linux
+
+```bash
+inbox-update                    # latest release
+inbox-update --version v0.4.3  # a specific release
+```
+
+If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
+
+### Windows
+
+```powershell
+inbox-update.ps1
+inbox-update.ps1 -Version v0.4.3
+```
+
+Use `-BinDir` when `inbox.exe` is outside `PATH`. Cargo installations remain managed by Cargo; update those with the corresponding `cargo install` command.
 
 ## Capture, find, and refine
 
@@ -114,7 +137,7 @@ Editing preserves the ID, creation time, and view count. Omit tag options to kee
 | Search and filter together | `inbox search 'reading' -t product --sort priority -n 5` |
 | See tags and counts | `inbox tags` |
 | Read without counting a view | `inbox show <ID> --no-track` |
-| Full usage | `inbox --help` |
+| Full usage | `inbox help` |
 
 ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust` are the same tag. Duplicates and leading `#` are also normalized. A `#word` inside the body is ordinary text. Only successful `show` output counts as a view, including output redirected to a file. Lists, searches, and reviews do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
 
@@ -135,7 +158,7 @@ inbox restore a83f912b
 inbox trash empty                   # Confirm permanent deletion
 ```
 
-For `delete range`, omitted year, month, and day default to the current local date; omitted hours default to `0 24`. Two-digit years mean 2000–2099. Matching uses each note's recorded date and hour. In this command, `-y` means year and `-h` means hours: use `--yes` to skip confirmation and `--help` for help.
+For `delete range`, omitted year, month, and day default to the current local date; omitted hours default to `0 24`. Two-digit years mean 2000–2099. Matching uses each note's recorded date and hour. In this command, `-y` means year and `-h` means hours; use `--yes` to skip confirmation and `inbox help` for help.
 
 Bulk deletion asks you to press `y`; any other key or EOF cancels immediately. `--yes` skips the prompt for automation. Notes added while you confirm are preserved. Deletion clears view history; restoring brings back the body, tags, ID, and original creation time, but not past views. **Emptying trash is permanent.**
 
@@ -145,8 +168,8 @@ Notes live in `~/inbox/YYYY/MM/YYYY-MM-DD.md`. Change the location with `--dir` 
 
 ```bash
 inbox --dir ~/Notes/inbox add 'An idea'
-inbox --lang en --help
-inbox --lang zh --help
+inbox help --lang en
+inbox help --lang zh
 ```
 
 Language precedence is `--lang` > `INBOX_LANG` > system language. Choose `auto`, `en`, or `zh`; unsupported system languages fall back to English. Body text and tags are never translated. Since v0.3.0, use `add` instead of the old `-m` capture option. For body text starting with a dash, put options first and use `--`, for example `inbox add -- '--an idea'`.

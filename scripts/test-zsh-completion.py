@@ -62,15 +62,16 @@ bindkey '^G' _test_reset
     try:
         read_until(master, b"READY> ")
         cases = [
-            ("restore ", trash, active + ["--help", "--dir"]),
-            ("show ", active, trash + ["--no-track", "--help"]),
+            ("he", ["help"], ["--help"]),
+            ("restore ", trash, active + ["--dir"]),
+            ("show ", active, trash + ["--no-track", "--dir"]),
             ("edit ", active, ["--clear-tags"]),
             ("delete ", active + ["today", "range", "all"], ["--yes"]),
-            ("show -", ["--no-track", "--help"], ["--tag", "--yes", "--limit"]),
-            ("restore -", ["--help", "--dir"], ["--no-track", "--tag", "--yes"]),
+            ("show -", ["--no-track", "--dir"], ["--help", "--tag", "--yes", "--limit"]),
+            ("restore -", ["--dir"], ["--help", "--no-track", "--tag", "--yes"]),
             ("list -t ", ["work"], ["--help"]),
             ("delete today -", ["--yes"], ["--tag", "--no-track"]),
-            ("trash -", ["--help"], ["--yes", "--tag"]),
+            ("trash -", ["--dir"], ["--help", "--yes", "--tag"]),
         ]
         for line, wanted, forbidden in cases:
             (root / "matches").write_text("")

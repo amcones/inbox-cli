@@ -13,7 +13,7 @@ _inbox() {
                 if ((i + 1 < COMP_CWORD)); then global_args+=("${COMP_WORDS[i+1]}"); ((i++)); fi
                 ;;
             --dir=*|--lang=*) global_args+=("${COMP_WORDS[i]}") ;;
-            add|edit|list|search|review|show|delete|trash|restore|tags|doctor)
+            add|edit|list|search|review|show|delete|trash|restore|tags|doctor|help)
                 if [[ -z "$command" ]]; then command="${COMP_WORDS[i]}"; command_index=$i; fi ;;
         esac
     done
@@ -30,14 +30,14 @@ _inbox() {
             return ;;
     esac
     if [[ -z "$command" ]]; then
-        candidates=(add edit list search review show delete trash restore tags doctor --dir --lang -h --help -V --version)
+        candidates=(add edit list search review show delete trash restore tags doctor help --dir --lang -V --version)
         COMPREPLY=( $(compgen -W "${candidates[*]}" -- "$cur") ); return
     fi
     if [[ "$command" == delete && "${COMP_WORDS[command_index+1]:-}" == range ]]; then
         if [[ "$prev" == -h || "${COMP_WORDS[COMP_CWORD-2]:-}" == -h ]]; then
             COMPREPLY=( $(compgen -W "0 6 8 9 12 18 24" -- "$cur") )
         else
-            COMPREPLY=( $(compgen -W "-y -m -d -h --yes --dir --lang --help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "-y -m -d -h --yes --dir --lang" -- "$cur") )
         fi
         return
     fi
@@ -48,25 +48,25 @@ _inbox() {
             delete)
                 ids="$(command inbox "${global_args[@]}" __complete active-ids 2>/dev/null)"
                 COMPREPLY=( $(compgen -W "$ids today range all" -- "$cur") ); return ;;
-            trash) COMPREPLY=( $(compgen -W "empty --help" -- "$cur") ); return ;;
+            trash) COMPREPLY=( $(compgen -W "empty" -- "$cur") ); return ;;
         esac
         if [[ -n "${kind:-}" ]]; then
             COMPREPLY=( $(compgen -W "$(command inbox "${global_args[@]}" __complete "$kind" 2>/dev/null)" -- "$cur") ); return
         fi
     fi
     case "$command" in
-        add) candidates=(-t --tag --dir --lang -h --help) ;;
-        edit) candidates=(-t --tag --clear-tags --dir --lang -h --help) ;;
-        list|search) candidates=(-t --tag --any --sort -n --limit --dir --lang -h --help) ;;
-        review) candidates=(-n --limit --dir --lang -h --help) ;;
-        show) candidates=(--no-track --dir --lang -h --help) ;;
+        add) candidates=(-t --tag --dir --lang) ;;
+        edit) candidates=(-t --tag --clear-tags --dir --lang) ;;
+        list|search) candidates=(-t --tag --any --sort -n --limit --dir --lang) ;;
+        review) candidates=(-n --limit --dir --lang) ;;
+        show) candidates=(--no-track --dir --lang) ;;
         delete)
             case "${COMP_WORDS[command_index+1]:-}" in
-                today|all) candidates=(--yes --dir --lang -h --help) ;;
-                *) candidates=(-t --tag --dir --lang -h --help) ;;
+                today|all) candidates=(--yes --dir --lang) ;;
+                *) candidates=(-t --tag --dir --lang) ;;
             esac ;;
-        trash) [[ "${COMP_WORDS[command_index+1]:-}" == empty ]] && candidates=(--yes --dir --lang -h --help) || candidates=(--dir --lang -h --help) ;;
-        restore|tags|doctor) candidates=(--dir --lang -h --help) ;;
+        trash) [[ "${COMP_WORDS[command_index+1]:-}" == empty ]] && candidates=(--yes --dir --lang) || candidates=(--dir --lang) ;;
+        restore|tags|doctor|help) candidates=(--dir --lang) ;;
     esac
     COMPREPLY=( $(compgen -W "${candidates[*]}" -- "$cur") )
 }

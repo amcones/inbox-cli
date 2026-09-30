@@ -1,7 +1,7 @@
 Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $commands = @('add','edit','list','search','review','show','delete','trash','restore','tags','doctor')
+    $commands = @('add','edit','list','search','review','show','delete','trash','restore','tags','doctor','help')
     $elements = @($commandAst.CommandElements | ForEach-Object { $_.Value })
     $subcommand = $elements | Where-Object { $_ -in $commands } | Select-Object -First 1
     $previous = if ($elements.Count -ge 2) { $elements[-2] } else { '' }
@@ -45,7 +45,7 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     }
 
     if (-not $subcommand) {
-        Complete-Values ($commands + @('--dir','--lang','-h','--help','-V','--version')) 'command or global option'
+        Complete-Values ($commands + @('--dir','--lang','-V','--version')) 'command or global option'
         return
     }
 
@@ -59,7 +59,7 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
         }
     }
 
-    $common = @('--dir','--lang','-h','--help')
+    $common = @('--dir','--lang')
     $options = switch ($subcommand) {
         'add' { @('-t','--tag') + $common }
         'edit' { @('-t','--tag','--clear-tags') + $common }
@@ -69,7 +69,7 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
         'restore' { $common }
         'trash' { @('--yes') + $common }
         'delete' {
-            if ($elements -contains 'range') { @('-y','-m','-d','-h','--yes','--dir','--lang','--help') }
+            if ($elements -contains 'range') { @('-y','-m','-d','-h','--yes','--dir','--lang') }
             elseif ($elements -contains 'today' -or $elements -contains 'all') { @('--yes') + $common }
             else { @('-t','--tag') + $common }
         }

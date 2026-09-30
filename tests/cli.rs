@@ -803,8 +803,10 @@ fn symlink_date_directory_cannot_hide_successful_writes() {
 #[test]
 fn language_options_translate_help_status_and_errors_without_touching_content() {
     let inbox = Inbox::new();
-    assert!(inbox.ok(&["--help", "--lang", "en"]).contains("Usage:"));
-    assert!(inbox.ok(&["--lang=zh", "--help"]).contains("用法:"));
+    assert!(inbox.ok(&["help", "--lang", "en"]).contains("Usage:"));
+    assert!(inbox.ok(&["--lang=zh", "help"]).contains("用法:"));
+    assert_eq!(inbox.run(&["--help"]).status.code(), Some(2));
+    assert_eq!(inbox.run(&["-h"]).status.code(), Some(2));
     assert!(inbox.ok(&["--lang", "en", "doctor"]).contains("0 notes"));
     for (lang, expected) in [("en", "Content must not be empty"), ("zh", "内容不能为空")] {
         let out = inbox.run(&["--lang", lang, "add", " "]);
@@ -847,43 +849,37 @@ fn language_environment_precedence_and_unsupported_locale_fallback() {
         );
         String::from_utf8(out.stdout).unwrap()
     };
-    assert!(help(&[("LANG", "zh_TW.UTF-8")], &["--help"]).contains("用法:"));
+    assert!(help(&[("LANG", "zh_TW.UTF-8")], &["help"]).contains("用法:"));
     assert!(
         help(
             &[("LANG", "zh_CN.UTF-8"), ("LC_MESSAGES", "en_GB.UTF-8")],
-            &["--help"]
+            &["help"]
         )
         .contains("Usage:")
     );
-    assert!(
-        help(
-            &[("LANG", "en_US.UTF-8"), ("LC_ALL", "zh-Hans")],
-            &["--help"]
-        )
-        .contains("用法:")
-    );
+    assert!(help(&[("LANG", "en_US.UTF-8"), ("LC_ALL", "zh-Hans")], &["help"]).contains("用法:"));
     for lang in ["C", "POSIX", "fr_FR.UTF-8"] {
-        assert!(help(&[("LANG", lang)], &["--help"]).contains("Usage:"));
+        assert!(help(&[("LANG", lang)], &["help"]).contains("Usage:"));
     }
-    assert!(help(&[("LANG", "C"), ("INBOX_LANG", "zh")], &["--help"]).contains("用法:"));
+    assert!(help(&[("LANG", "C"), ("INBOX_LANG", "zh")], &["help"]).contains("用法:"));
     assert!(
         help(
             &[("LANG", "zh_CN"), ("INBOX_LANG", "zh")],
-            &["--help", "--lang=en"]
+            &["help", "--lang=en"]
         )
         .contains("Usage:")
     );
     assert!(
         help(
             &[("LANG", "C"), ("INBOX_LANG", "zh")],
-            &["--help", "--lang=auto"]
+            &["help", "--lang=auto"]
         )
         .contains("Usage:")
     );
     assert!(
         help(
             &[("LANG", "C"), ("INBOX_LANG", "invalid")],
-            &["--help", "--lang=en"]
+            &["help", "--lang=en"]
         )
         .contains("Usage:")
     );

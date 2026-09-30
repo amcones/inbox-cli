@@ -1,0 +1,76 @@
+name: Cleanup stale branches
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Delete stale topic branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cutoff="$(date -u -d '30 days ago' +%s)"
+
+          gh api \
+            --paginate \
+            repos/${{ github.repository }}/branches \
+            --jq '.[].name' |
+          while read -r branch; do
+
+            case "$branch" in
+              main|develop)
+                continue
+                ;;
+              feat/*|fix/*|docs/*|refactor/*|chore/*|ci/*|test/*|perf/*|build/*|revert/*)
+                ;;
+              *)
+                echo "Skip unmanaged branch: $branch"
+                continue
+                ;;
+            esac
+
+            open_prs="$(
+              gh pr list \
+                --repo "${{ github.repository }}" \
+                --head "$branch" \
+                --state open \
+                --json number \
+                --jq 'length'
+            )"
+
+            if [[ "$open_prs" != "0" ]]; then
+              echo "Skip $branch: open PR exists"
+              continue
+            fi
+
+            committed_at="$(
+              gh api \
+                "repos/${{ github.repository }}/commits/$branch" \
+                --jq '.commit.committer.date'
+            )"
+
+            committed_ts="$(date -u -d "$committed_at" +%s)"
+
+            if (( committed_ts < cutoff )); then
+              echo "Deleting stale branch: $branch"
+              gh api \
+                --method DELETE \
+                "repos/${{ github.repository }}/git/refs/heads/$branch"
+            else
+              echo "Keep $branch: recently updated"
+            fi
+          done

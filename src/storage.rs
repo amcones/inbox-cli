@@ -94,6 +94,40 @@ impl Store {
         }))
     }
 
+    /// Opens an immutable snapshot without creating files, taking locks, or
+    /// recovering transactions. Callers must validate the tree first.
+    pub(crate) fn open_snapshot(root: &Path) -> Result<Self> {
+        let root = if root.is_absolute() {
+            root.to_owned()
+        } else {
+            std::env::current_dir()?.join(root)
+        };
+        let root_meta = fs::symlink_metadata(&root)?;
+        if !root_meta.file_type().is_dir() {
+            return Err(crate::message!(
+                "{}: 快照数据必须是普通目录",
+                "{}: snapshot data must be a regular directory",
+                root.display()
+            )
+            .into());
+        }
+        let version = root.join(".inbox/format-version");
+        let version_meta = fs::symlink_metadata(&version)?;
+        if !version_meta.file_type().is_file() || fs::read(&version)? != FORMAT {
+            return Err(crate::message!(
+                "{}: 不支持或损坏的存储格式版本",
+                "{}: unsupported or corrupt storage format version",
+                version.display()
+            )
+            .into());
+        }
+        Ok(Self {
+            root,
+            _lock: File::open(version)?,
+            exclusive: false,
+        })
+    }
+
     pub fn add(&self, note: &Note) -> Result<PathBuf> {
         if !self.exclusive {
             return Err(

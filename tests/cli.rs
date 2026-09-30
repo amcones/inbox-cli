@@ -92,6 +92,19 @@ fn copy_directory(source: &Path, destination: &Path) {
     }
 }
 
+#[cfg(unix)]
+fn set_tree_mode(path: &Path, directory_mode: u32, file_mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+    if path.is_dir() {
+        for entry in fs::read_dir(path).unwrap() {
+            set_tree_mode(&entry.unwrap().path(), directory_mode, file_mode);
+        }
+        fs::set_permissions(path, fs::Permissions::from_mode(directory_mode)).unwrap();
+    } else {
+        fs::set_permissions(path, fs::Permissions::from_mode(file_mode)).unwrap();
+    }
+}
+
 #[test]
 fn empty_inbox_does_not_create_files() {
     let inbox = Inbox::new();
@@ -100,6 +113,25 @@ fn empty_inbox_does_not_create_files() {
     assert_eq!(inbox.ok(&["tags"]), "");
     assert!(inbox.ok(&["doctor"]).contains("0 条记录"));
     assert!(!inbox.0.exists());
+}
+
+#[test]
+fn info_reports_location_health_and_counts_without_initializing_an_empty_store() {
+    let inbox = Inbox::new();
+    let empty = inbox.ok(&["info", "--lang", "en"]);
+    assert!(empty.contains("Version: 0.5.1"));
+    assert!(empty.contains(&format!("Data directory: {}", inbox.0.display())));
+    assert!(empty.contains("Storage: not initialized"));
+    assert!(empty.contains("Day files: 0, notes: 0, views: 0, trash: 0"));
+    assert!(!inbox.0.exists());
+
+    let active = inbox.ok(&["add", "active"]);
+    inbox.ok(&["show", active.trim()]);
+    let trashed = inbox.ok(&["add", "trashed"]);
+    inbox.ok(&["delete", trashed.trim()]);
+    let populated = inbox.ok(&["info", "--lang", "en"]);
+    assert!(populated.contains("Storage format: 1"));
+    assert!(populated.contains("Day files: 1, notes: 1, views: 1, trash: 1"));
 }
 
 #[test]
@@ -512,6 +544,8 @@ fn invalid_input_does_not_create_a_store() {
         vec!["add", "a", "--sort", "time"],
         vec!["--any"],
         vec!["tags", "-t", "a"],
+        vec!["info", "--limit", "1"],
+        vec!["backup", "verify"],
         vec!["--dir", ""],
         vec!["list", "--wat"],
     ] {
@@ -1429,6 +1463,78 @@ fn complete_backup_and_restore_round_trip_notes_views_and_trash() {
 
     fs::remove_dir_all(backup).unwrap();
     fs::remove_dir_all(safety).unwrap();
+}
+
+#[test]
+fn v050_backup_verifies_read_only_and_restores_in_v051() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("v050-backup");
+    let original = inbox.ok(&["add", "from v0.5.0"]);
+    inbox.ok(&["backup", backup.to_str().unwrap()]);
+
+    let manifest_path = backup.join("inbox-backup.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["inbox_version"] = "0.5.0".into();
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+
+    #[cfg(unix)]
+    set_tree_mode(&backup, 0o500, 0o400);
+    let verified = inbox.ok(&["backup", "verify", backup.to_str().unwrap(), "--lang", "en"]);
+    assert!(verified.contains("Backup OK"));
+    assert!(verified.contains("created by inbox 0.5.0"));
+
+    let later = inbox.ok(&["add", "created in v0.5.1"]);
+    let restored = inbox.ok(&[
+        "restore",
+        "--from",
+        backup.to_str().unwrap(),
+        "--yes",
+        "--lang",
+        "en",
+    ]);
+    assert!(restored.contains("Restore complete"));
+    assert!(
+        inbox
+            .ok(&["show", original.trim(), "--no-track"])
+            .contains("from v0.5.0")
+    );
+    assert!(
+        !inbox
+            .run(&["show", later.trim(), "--no-track"])
+            .status
+            .success()
+    );
+
+    let safety = restored.split("backed up to ").nth(1).unwrap().trim();
+    fs::remove_dir_all(safety).unwrap();
+    #[cfg(unix)]
+    set_tree_mode(&backup, 0o700, 0o600);
+    fs::remove_dir_all(backup).unwrap();
+}
+
+#[test]
+fn backup_verify_rejects_unknown_format_without_modifying_the_backup() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("future-backup");
+    inbox.ok(&["add", "current"]);
+    inbox.ok(&["backup", backup.to_str().unwrap()]);
+    let manifest_path = backup.join("inbox-backup.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["version"] = 2.into();
+    let before = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(&manifest_path, &before).unwrap();
+
+    let output = inbox.run(&["backup", "verify", backup.to_str().unwrap(), "--lang", "en"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Unsupported backup format"));
+    assert_eq!(fs::read(&manifest_path).unwrap(), before);
+    fs::remove_dir_all(backup).unwrap();
 }
 
 #[test]

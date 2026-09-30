@@ -366,9 +366,25 @@ fn run(cli: Cli) -> Result<()> {
                 )
             )?;
         }
+        Command::VerifyBackup { source } => {
+            let info = backup::validate(&source)?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!(
+                    "备份有效：{}（由 inbox {} 于 {} 创建；{} 个文件，{} 字节）",
+                    "Backup OK: {} (created by inbox {} at {}; {} files, {} bytes)",
+                    source.display(),
+                    info.inbox_version,
+                    info.created_at,
+                    info.stats.files,
+                    info.stats.bytes
+                )
+            )?;
+        }
         Command::RestoreBackup { source, yes } => {
-            let stats = backup::validate(&source)?;
-            if !yes && !confirm_restore(&source, stats.files, stats.bytes)? {
+            let info = backup::validate(&source)?;
+            if !yes && !confirm_restore(&source, info.stats.files, info.stats.bytes)? {
                 writeln!(
                     out,
                     "{}",
@@ -398,6 +414,47 @@ fn run(cli: Cli) -> Result<()> {
                     writeln!(out, "{}\t{count}", terminal_text(&tag, false))?;
                 }
             }
+        }
+        Command::Info => {
+            let display_root = if root.is_absolute() {
+                root.clone()
+            } else {
+                std::env::current_dir()?.join(&root)
+            };
+            let (initialized, files, notes, views, trashed) = match Store::open(&root, false)? {
+                Some(store) => {
+                    let (files, notes, views) = query::doctor(&store)?;
+                    (true, files, notes, views, trash::list(&store)?.len())
+                }
+                None => (false, 0, 0, 0, 0),
+            };
+            writeln!(
+                out,
+                "{}",
+                inbox::message!("版本：{}", "Version: {}", env!("CARGO_PKG_VERSION"))
+            )?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!("数据目录：{}", "Data directory: {}", display_root.display())
+            )?;
+            writeln!(
+                out,
+                "{}",
+                if initialized {
+                    i18n::text("存储格式：1", "Storage format: 1")
+                } else {
+                    i18n::text("存储：尚未初始化", "Storage: not initialized")
+                }
+            )?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!(
+                    "日期文件：{files}，灵感：{notes}，浏览：{views}，回收站：{trashed}",
+                    "Day files: {files}, notes: {notes}, views: {views}, trash: {trashed}"
+                )
+            )?;
         }
         Command::Doctor => {
             let (files, notes, views, trashed) = match Store::open(&root, false)? {

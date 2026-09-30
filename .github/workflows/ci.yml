@@ -7,6 +7,10 @@ on:
       - main
       - develop
 
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -14,6 +18,7 @@ jobs:
   source-branch:
     name: PR source policy
     runs-on: ubuntu-24.04
+
     steps:
       - name: Validate PR source and target
         env:
@@ -21,6 +26,7 @@ jobs:
           HEAD_BRANCH: ${{ github.head_ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPOSITORY: ${{ github.repository }}
+
         run: |
           case "$BASE_BRANCH" in
             main)
@@ -29,6 +35,7 @@ jobs:
                 exit 1
               fi
               ;;
+
             develop)
               case "$HEAD_BRANCH" in
                 main)
@@ -37,13 +44,24 @@ jobs:
                     exit 1
                   fi
                   ;;
-                feat/?*|fix/?*|docs/?*|refactor/?*|chore/?*|ci/?*|test/?*|perf/?*|build/?*|revert/?*) ;;
+
+                dependabot/?*)
+                  if [[ "$HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+                    echo "Dependabot PRs must originate from this repository." >&2
+                    exit 1
+                  fi
+                  ;;
+
+                feat/?*|fix/?*|docs/?*|refactor/?*|chore/?*|ci/?*|test/?*|perf/?*|build/?*|revert/?*)
+                  ;;
+
                 *)
-                  echo "PRs targeting develop must use a topic branch (feat/fix/docs/refactor/chore/ci/test/perf/build/revert/*), or main for release synchronization." >&2
+                  echo "PRs targeting develop must use a topic branch (feat/fix/docs/refactor/chore/ci/test/perf/build/revert/*), a same-repository Dependabot branch (dependabot/*), or main for release synchronization." >&2
                   exit 1
                   ;;
               esac
               ;;
+
             *)
               echo "Unsupported PR target: $BASE_BRANCH." >&2
               exit 1
@@ -53,6 +71,7 @@ jobs:
   quality:
     name: Rust quality
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v5
 
@@ -72,6 +91,7 @@ jobs:
   msrv:
     name: Rust 1.89
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v5
 
@@ -82,6 +102,7 @@ jobs:
 
   platform:
     name: ${{ matrix.name }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -137,6 +158,7 @@ jobs:
   gate:
     name: CI gate
     if: ${{ always() }}
+
     needs:
       - source-branch
       - quality
@@ -154,6 +176,7 @@ jobs:
             needs.msrv.result != 'success' ||
             needs.platform.result != 'success'
           }}
+
         run: |
           echo "Source policy result: ${{ needs.source-branch.result }}"
           echo "Quality result:       ${{ needs.quality.result }}"

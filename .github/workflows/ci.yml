@@ -2,6 +2,7 @@ name: PR binaries
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - develop
@@ -14,15 +15,40 @@ jobs:
     name: PR source policy
     runs-on: ubuntu-24.04
     steps:
-      - name: Require develop for main PRs
+      - name: Validate PR source and target
         env:
           BASE_BRANCH: ${{ github.base_ref }}
           HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.repository }}
         run: |
-          if [[ "$BASE_BRANCH" == "main" && "$HEAD_BRANCH" != "develop" ]]; then
-            echo "PRs targeting main must come from develop; got $HEAD_BRANCH." >&2
-            exit 1
-          fi
+          case "$BASE_BRANCH" in
+            main)
+              if [[ "$HEAD_BRANCH" != "develop" || "$HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+                echo "PRs targeting main must come from this repository's develop branch." >&2
+                exit 1
+              fi
+              ;;
+            develop)
+              case "$HEAD_BRANCH" in
+                main)
+                  if [[ "$HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+                    echo "Only this repository's main branch may synchronize release history." >&2
+                    exit 1
+                  fi
+                  ;;
+                feat/?*|fix/?*|docs/?*|refactor/?*|chore/?*|ci/?*|test/?*|perf/?*|build/?*|revert/?*) ;;
+                *)
+                  echo "PRs targeting develop must use a topic branch (feat/fix/docs/refactor/chore/ci/test/perf/build/revert/*), or main for release synchronization." >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Unsupported PR target: $BASE_BRANCH." >&2
+              exit 1
+              ;;
+          esac
 
   msrv:
     name: Rust 1.89

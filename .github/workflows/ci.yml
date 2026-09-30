@@ -144,6 +144,12 @@ jobs:
             --bin-dir "$RUNNER_TEMP/inbox-bin"
           "$RUNNER_TEMP/inbox-bin/inbox" --version
 
+      - name: Verify interactive Zsh completion
+        if: runner.os == 'macOS'
+        run: |
+          cargo build --locked
+          python3 scripts/test-zsh-completion.py
+
       - name: Verify Windows build and install scripts
         if: runner.os == 'Windows'
         shell: pwsh

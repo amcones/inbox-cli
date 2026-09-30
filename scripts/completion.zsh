@@ -35,7 +35,7 @@ _inbox() {
   command=$words[2]
   # _arguments counts positions from the command name. Remove the subcommand
   # so its first positional specification applies to the word after it.
-  words=($words[1] $words[3,-1])
+  words=("$words[1]" "${(@)words[3,-1]}")
   (( CURRENT-- ))
   case $command in
     add) _arguments $common '*'{-t,--tag}'[add a tag]:tag:_inbox_tags' '1:content:' ;;
@@ -45,13 +45,20 @@ _inbox() {
     review) _arguments $common '(-n --limit)'{-n,--limit}'[maximum results]:count:(5 10 20 50 100)' ;;
     show) _arguments $common '--no-track[do not count a view]' '1:idea ID:_inbox_active' ;;
     restore) _arguments $common '1:trashed idea ID:_inbox_trash' ;;
-    trash) _arguments $common '--yes[skip confirmation]' '1:action:(empty)' ;;
+    trash)
+      if [[ $words[2] == empty ]]; then
+        _arguments $common '(-y --yes)'{-y,--yes}'[skip confirmation]' '1:action:(empty)'
+      else
+        _arguments $common '1:action:(empty)'
+      fi ;;
     delete)
       target=$words[2]
       if [[ $target == range ]]; then
         _arguments $range_common '--yes[skip confirmation]' '-y[year]:year:' '-m[month]:month:({1..12})' '-d[day]:day:({1..31})' '-h[hour range]:start hour:({0..23}):end hour:({1..24})' '1:target:(range)'
+      elif [[ $target == today || $target == all ]]; then
+        _arguments $common '(-y --yes)'{-y,--yes}'[skip bulk confirmation]' '1:target:_inbox_delete_targets'
       else
-        _arguments $common '--yes[skip bulk confirmation]' '*'{-t,--tag}'[remove a tag]:tag:_inbox_tags' '1:target:_inbox_delete_targets'
+        _arguments $common '*'{-t,--tag}'[remove a tag]:tag:_inbox_tags' '1:target:_inbox_delete_targets'
       fi ;;
     tags|doctor) _arguments $common ;;
     *) _describe 'command' commands ;;

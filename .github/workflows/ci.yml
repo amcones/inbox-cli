@@ -4,11 +4,26 @@ on:
   pull_request:
     branches:
       - main
+      - develop
 
 permissions:
   contents: read
 
 jobs:
+  source-branch:
+    name: PR source policy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require develop for main PRs
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ "$BASE_BRANCH" == "main" && "$HEAD_BRANCH" != "develop" ]]; then
+            echo "PRs targeting main must come from develop; got $HEAD_BRANCH." >&2
+            exit 1
+          fi
+
   msrv:
     name: Rust 1.89
     runs-on: ubuntu-24.04
@@ -17,7 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.89.0
       - run: cargo check --all-targets --locked
 
-  build-and-test:
+  platform:
     name: ${{ matrix.name }}
     strategy:
       fail-fast: false
@@ -58,3 +73,22 @@ jobs:
           ./scripts/build.ps1
           ./scripts/install.ps1 -NoBuild -Shell none -BinDir "$env:RUNNER_TEMP\inbox-bin"
           & "$env:RUNNER_TEMP\inbox-bin\inbox.exe" --version
+
+  gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs:
+      - source-branch
+      - msrv
+      - platform
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all platform checks
+        if: ${{ needs.source-branch.result != 'success' || needs.msrv.result != 'success' || needs.platform.result != 'success' }}
+        run: |
+          echo "Source policy result: ${{ needs.source-branch.result }}"
+          echo "MSRV result: ${{ needs.msrv.result }}"
+          echo "Platform result: ${{ needs.platform.result }}"
+          exit 1
+      - name: Checks passed
+        run: echo "All required Rust, platform, and script checks passed."

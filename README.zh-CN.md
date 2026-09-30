@@ -80,7 +80,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.2 --locked
 ```
 
 ## 记录、查找和完善
@@ -120,7 +120,7 @@ inbox edit a83f912b --clear-tags
 
 ## 命令补全
 
-安装脚本会部署 Bash、Zsh、Fish 和 PowerShell 的动态补全。除了顶层命令外，`show`、`restore` 和 `delete` 后还会调用 `inbox list` 提示最近 20 条灵感的 ID。Unix 安装脚本会把补全写入当前 shell 的用户目录；Zsh 还会提示需要加入 `~/.zshrc` 的 `fpath` 和 `compinit` 配置。PowerShell 用户需在配置文件中点加载安装目录里的 `inbox-completion.ps1`。
+安装脚本会部署 Bash、Zsh、Fish 和 PowerShell 的动态补全，覆盖命令、各命令可用选项、标签、排序与语言值、常用数量、日期与小时。`show`、`edit` 和 `delete` 会提示活动灵感 ID，`restore` 会提示回收站 ID。Unix 安装脚本会把所需设置写入检测到的 shell 配置文件；PowerShell 安装脚本会更新用户配置文件。
 
 ## 删除与恢复
 

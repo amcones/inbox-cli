@@ -90,6 +90,19 @@ fn empty_inbox_does_not_create_files() {
 }
 
 #[test]
+fn completion_interface_returns_active_trash_and_tag_candidates() {
+    let inbox = Inbox::new();
+    let active = inbox.ok(&["add", "active", "-t", "Work"]);
+    let trashed = inbox.ok(&["add", "trashed", "-t", "Archive"]);
+    inbox.ok(&["delete", trashed.trim()]);
+
+    assert_eq!(inbox.ok(&["__complete", "active-ids"]), active);
+    assert_eq!(inbox.ok(&["__complete", "trash-ids"]), trashed);
+    assert_eq!(inbox.ok(&["__complete", "tags"]), "work\n");
+    assert!(!inbox.run(&["__complete", "unknown"]).status.success());
+}
+
+#[test]
 fn full_text_search_supports_case_tags_sorting_and_limits_without_tracking_views() {
     let inbox = Inbox::new();
     let older = inbox.add_at(

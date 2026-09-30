@@ -1,19 +1,79 @@
 Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
-    $commands = 'add','edit','list','search','review','show','delete','trash','restore','tags','doctor'
-    $elements = @($commandAst.CommandElements)
-    if ($elements.Count -le 2) {
-        $commands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+
+    $commands = @('add','edit','list','search','review','show','delete','trash','restore','tags','doctor')
+    $elements = @($commandAst.CommandElements | ForEach-Object { $_.Value })
+    $subcommand = $elements | Where-Object { $_ -in $commands } | Select-Object -First 1
+    $previous = if ($elements.Count -ge 2) { $elements[-2] } else { '' }
+    $globalArgs = @()
+    for ($i = 1; $i -lt $elements.Count; $i++) {
+        if ($elements[$i] -in @('--dir','--lang') -and $i + 1 -lt $elements.Count) {
+            $globalArgs += $elements[$i], $elements[$i + 1]
+            $i++
+        } elseif ($elements[$i] -match '^--(dir|lang)=') {
+            $globalArgs += $elements[$i]
         }
+    }
+
+    function Complete-Values([string[]]$Values, [string]$ToolTip = 'inbox completion') {
+        $Values | Where-Object { $_ -like "$wordToComplete*" } | Sort-Object -Unique | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $ToolTip)
+        }
+    }
+    function Inbox-Values([string]$Kind) {
+        @(& inbox @globalArgs __complete $Kind 2>$null)
+    }
+
+    switch ($previous) {
+        '--lang' { Complete-Values @('auto','en','zh') 'language'; return }
+        '--sort' { Complete-Values @('time','priority') 'sort order'; return }
+        { $_ -in @('-n','--limit') } { Complete-Values @('5','10','20','50','100') 'result limit'; return }
+        '-m' { Complete-Values @(1..12 | ForEach-Object { "$_" }) 'month'; return }
+        '-d' { Complete-Values @(1..31 | ForEach-Object { "$_" }) 'day'; return }
+        '-y' { Complete-Values @("$(Get-Date -Format yyyy)") 'year'; return }
+        '-h' {
+            if ($subcommand -eq 'delete' -and $elements -contains 'range') {
+                Complete-Values @('0','6','8','9','12','18','24') 'hour'; return
+            }
+        }
+        { $_ -in @('-t','--tag') } { Complete-Values (Inbox-Values 'tags') 'tag'; return }
+    }
+
+    if ($subcommand -eq 'delete' -and $elements -contains 'range' -and $elements.Count -ge 3 -and $elements[-3] -eq '-h') {
+        Complete-Values @('1','6','8','9','12','18','24') 'end hour'
         return
     }
-    $subcommand = $elements[1].Value
-    if ($elements.Count -eq 3 -and $subcommand -in @('show','restore','delete')) {
-        $ids = @(inbox list -n 20 2>$null | ForEach-Object { ($_ -split '\s+')[0] })
-        if ($subcommand -eq 'delete') { $ids += @('today','range','all') }
-        $ids | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+
+    if (-not $subcommand) {
+        Complete-Values ($commands + @('--dir','--lang','-h','--help','-V','--version')) 'command or global option'
+        return
+    }
+
+    $subIndex = [Array]::IndexOf($elements, $subcommand)
+    if ($elements.Count -le $subIndex + 2) {
+        switch ($subcommand) {
+            { $_ -in @('show','edit') } { Complete-Values (Inbox-Values 'active-ids') 'active idea ID'; return }
+            'restore' { Complete-Values (Inbox-Values 'trash-ids') 'trashed idea ID'; return }
+            'delete' { Complete-Values ((Inbox-Values 'active-ids') + @('today','range','all')) 'delete target'; return }
+            'trash' { Complete-Values @('empty') 'trash action'; return }
         }
     }
+
+    $common = @('--dir','--lang','-h','--help')
+    $options = switch ($subcommand) {
+        'add' { @('-t','--tag') + $common }
+        'edit' { @('-t','--tag','--clear-tags') + $common }
+        { $_ -in @('list','search') } { @('-t','--tag','--any','--sort','-n','--limit') + $common }
+        'review' { @('-n','--limit') + $common }
+        'show' { @('--no-track') + $common }
+        'restore' { $common }
+        'trash' { @('--yes') + $common }
+        'delete' {
+            if ($elements -contains 'range') { @('-y','-m','-d','-h','--yes','--dir','--lang','--help') }
+            elseif ($elements -contains 'today' -or $elements -contains 'all') { @('--yes') + $common }
+            else { @('-t','--tag') + $common }
+        }
+        default { $common }
+    }
+    Complete-Values $options 'option'
 }

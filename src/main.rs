@@ -491,8 +491,8 @@ fn confirm_delete(label: &str, count: usize) -> Result<bool> {
     eprint!(
         "{}",
         inbox::message!(
-            "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。按 y 确认，其他键取消：",
-            "Move {count} notes from {label} to trash and clear their view history. Press y to confirm; any other key cancels: "
+            "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。按 y 确认：",
+            "Move {count} notes from {label} to trash and clear their view history. Press y to confirm: "
         )
     );
     io::stderr().flush()?;
@@ -505,8 +505,8 @@ fn confirm_empty_trash(count: usize) -> Result<bool> {
     eprint!(
         "{}",
         inbox::message!(
-            "将永久删除回收站中的 {count} 条灵感。按 y 确认，其他键取消：",
-            "Permanently delete {count} notes from trash. Press y to confirm; any other key cancels: "
+            "将永久删除回收站中的 {count} 条灵感。按 y 确认：",
+            "Permanently delete {count} notes from trash. Press y to confirm: "
         )
     );
     io::stderr().flush()?;

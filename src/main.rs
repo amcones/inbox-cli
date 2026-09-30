@@ -1,5 +1,5 @@
 use inbox::{
-    Result,
+    Result, backup,
     cli::{self, Cli, Command, CompletionKind, DeleteTarget},
     deletion, editing, i18n,
     model::{MAX_CONTENT_BYTES, Note, terminal_text},
@@ -348,6 +348,48 @@ fn run(cli: Cli) -> Result<()> {
                 inbox::message!("已恢复 {}", "Restored {}", note.short_id())
             )?;
         }
+        Command::Backup { destination } => {
+            if !root.try_exists()? {
+                return Err(i18n::text("inbox 为空", "The inbox is empty").into());
+            }
+            let store = Store::open(&root, true)?.unwrap();
+            let stats = backup::create(&store, &destination)?;
+            writeln!(
+                out,
+                "{}",
+                inbox::message!(
+                    "备份完成：{}（{} 个文件，{} 字节）",
+                    "Backup created: {} ({} files, {} bytes)",
+                    destination.display(),
+                    stats.files,
+                    stats.bytes
+                )
+            )?;
+        }
+        Command::RestoreBackup { source, yes } => {
+            let stats = backup::validate(&source)?;
+            if !yes && !confirm_restore(&source, stats.files, stats.bytes)? {
+                writeln!(
+                    out,
+                    "{}",
+                    i18n::text("已取消，未还原任何数据", "Cancelled; no data was restored")
+                )?;
+            } else {
+                let store = Store::open(&root, true)?.unwrap();
+                let restored = backup::restore(&store, &source)?;
+                writeln!(
+                    out,
+                    "{}",
+                    inbox::message!(
+                        "还原完成：{} 个文件，{} 字节；原数据已备份至 {}",
+                        "Restore complete: {} files, {} bytes; previous data backed up to {}",
+                        restored.stats.files,
+                        restored.stats.bytes,
+                        restored.safety_backup.display()
+                    )
+                )?;
+            }
+        }
         Command::Tags => {
             if let Some(store) = Store::open(&root, false)? {
                 let tags = query::tags(&store)?;
@@ -493,6 +535,21 @@ fn confirm_delete(label: &str, count: usize) -> Result<bool> {
         inbox::message!(
             "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。按 y 确认：",
             "Move {count} notes from {label} to trash and clear their view history. Press y to confirm: "
+        )
+    );
+    io::stderr().flush()?;
+    let confirmed = confirmation::read_key()?;
+    eprintln!();
+    Ok(confirmed)
+}
+
+fn confirm_restore(path: &std::path::Path, files: u64, bytes: u64) -> Result<bool> {
+    eprint!(
+        "{}",
+        inbox::message!(
+            "将用备份 {}（{files} 个文件，{bytes} 字节）替换当前 inbox。按 y 确认：",
+            "Replace the current inbox with backup {} ({files} files, {bytes} bytes). Press y to confirm: ",
+            path.display()
         )
     );
     io::stderr().flush()?;

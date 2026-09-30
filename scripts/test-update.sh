@@ -13,7 +13,7 @@ esac
 
 test_dir="$(mktemp -d "${TMPDIR:-/tmp}/inbox-update-test.XXXXXX")"
 trap 'rm -rf -- "$test_dir"' EXIT
-release_dir="$test_dir/releases/download/v0.4.3"
+release_dir="$test_dir/releases/download/v0.5.0"
 package_dir="$test_dir/package/$asset"
 bin_dir="$test_dir/bin"
 mkdir -p "$release_dir" "$package_dir" "$bin_dir"
@@ -34,7 +34,7 @@ cp "$release_dir/$asset.tar.gz.sha256" "$release_dir/checksum.correct"
 awk '{ print "0000000000000000000000000000000000000000000000000000000000000000  " $2 }' \
     "$release_dir/checksum.correct" > "$release_dir/$asset.tar.gz.sha256"
 if HOME="$test_dir/home" INBOX_RELEASE_BASE_URL="file://$test_dir/releases" \
-    "$script_dir/update.sh" --version v0.4.3 --bin-dir "$bin_dir" 2>/dev/null
+    "$script_dir/update.sh" --version v0.5.0 --bin-dir "$bin_dir" 2>/dev/null
 then
     echo "updater accepted a damaged checksum" >&2
     exit 1
@@ -45,9 +45,9 @@ mv "$release_dir/checksum.correct" "$release_dir/$asset.tar.gz.sha256"
 HOME="$test_dir/home" \
 XDG_DATA_HOME="$test_dir" \
 INBOX_RELEASE_BASE_URL="file://$test_dir/releases" \
-    "$script_dir/update.sh" --version v0.4.3 --bin-dir "$bin_dir"
+    "$script_dir/update.sh" --version v0.5.0 --bin-dir "$bin_dir"
 
-test "$($bin_dir/inbox --version)" = "inbox 0.4.3"
+test "$($bin_dir/inbox --version)" = "inbox 0.5.0"
 cmp "$bin_dir/inbox-update" "$script_dir/update.sh"
 cmp "$test_dir/bash-completion/completions/inbox" "$script_dir/completion.bash"
 printf 'Unix updater test passed\n'

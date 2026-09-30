@@ -6,7 +6,7 @@ end
 function __inbox_no_command
     set -l words (commandline -opc)
     for word in $words[2..-1]
-        if contains -- $word add edit list search review show delete trash restore tags doctor help
+        if contains -- $word add edit list search review show delete trash restore backup tags doctor help
             return 1
         end
     end
@@ -29,7 +29,7 @@ function __inbox_complete_values
 end
 
 complete -c inbox -f
-complete -c inbox -n __inbox_no_command -a 'add edit list search review show delete trash restore tags doctor help'
+complete -c inbox -n __inbox_no_command -a 'add edit list search review show delete trash restore backup tags doctor help'
 complete -c inbox -n __inbox_no_command -l dir -r -d 'Data directory'
 complete -c inbox -n __inbox_no_command -l lang -r -a 'auto en zh' -d 'Language'
 complete -c inbox -n __inbox_no_command -s V -l version -d 'Show version'
@@ -38,6 +38,8 @@ complete -c inbox -n '__inbox_using_command show' -a '(__inbox_complete_values a
 complete -c inbox -n '__inbox_using_command edit' -a '(__inbox_complete_values active-ids)'
 complete -c inbox -n '__inbox_using_command delete' -a '(__inbox_complete_values active-ids) today range all'
 complete -c inbox -n '__inbox_using_command restore' -a '(__inbox_complete_values trash-ids)'
+complete -c inbox -n '__inbox_using_command restore' -l from -r -d 'Backup directory'
+complete -c inbox -n '__inbox_using_command restore' -l yes -d 'Skip full restore confirmation'
 complete -c inbox -n '__inbox_using_command trash' -a 'empty'
 
 for cmd in add edit list search delete
@@ -59,7 +61,7 @@ complete -c inbox -n '__inbox_using_command delete; and contains -- range (comma
 complete -c inbox -n '__inbox_using_command delete; and contains -- range (commandline -opc)' -s d -r -a '(seq 1 31)' -d 'Day'
 complete -c inbox -n '__inbox_using_command delete; and contains -- range (commandline -opc)' -s h -r -a '0 6 8 9 12 18 24' -d 'Hour'
 
-for cmd in add edit list search review show trash restore tags doctor help
+for cmd in add edit list search review show trash restore backup tags doctor help
     complete -c inbox -n "__inbox_using_command $cmd" -l dir -r -d 'Data directory'
     complete -c inbox -n "__inbox_using_command $cmd" -l lang -r -a 'auto en zh' -d 'Language'
 end

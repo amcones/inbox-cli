@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102552">
+    <meta name="description" content="inbox is a fast, local-first command-line tool for capturing and rediscovering ideas in plain Markdown.">
+    <meta property="og:title" content="inbox — A place for every line">
+    <meta property="og:description" content="Capture ideas in a heartbeat. Keep them in local Markdown. Find them when they matter.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/inbox-icon.svg">
+    <link rel="canonical" href="https://amcones.cn/inbox-cli/">
+    <title>inbox — A place for every line</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="inbox home">
+        <img src="assets/favicon.svg" width="32" height="32" alt="">
+        <span>inbox</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#features" data-i18n="navFeatures">Features</a>
+        <a href="#workflow" data-i18n="navWorkflow">Workflow</a>
+        <a href="#install" data-i18n="navInstall">Install</a>
+        <button class="language-toggle" type="button" aria-label="切换到中文" aria-pressed="false">
+          <span class="language-current">EN</span>
+          <span aria-hidden="true">/</span>
+          <span class="language-other">中</span>
+        </button>
+        <a class="nav-github" href="https://github.com/amcones/inbox-cli" data-i18n="navGithub">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow" data-i18n="eyebrow">FAST CAPTURE · PLAIN FILES</p>
+          <h1 data-i18n="heroTitle">Catch the thought<br>before it slips.</h1>
+          <p class="hero-lede" data-i18n="heroLede">A tiny command-line inbox for ideas. Write in a heartbeat, keep everything in local Markdown, and find the right note when it matters.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/amcones/inbox-cli/releases/latest" data-i18n="download">Download latest</a>
+            <a class="button button-secondary" href="https://github.com/amcones/inbox-cli#readme" data-i18n="readGuide">Read the guide</a>
+          </div>
+          <div class="hero-proof" aria-label="Project highlights">
+            <span data-i18n="proofBinary">Single binary</span>
+            <span data-i18n="proofLocal">Local Markdown</span>
+            <span>macOS · Linux · Windows</span>
+          </div>
+        </div>
+
+        <div class="hero-art" aria-label="inbox command preview">
+          <div class="icon-stage">
+            <span class="orbit orbit-one"></span>
+            <span class="orbit orbit-two"></span>
+            <img src="assets/inbox-icon.svg" width="432" height="432" alt="inbox application icon">
+          </div>
+          <div class="capture-card">
+            <div class="terminal-bar">
+              <span></span><span></span><span></span>
+              <strong>inbox</strong>
+            </div>
+            <code><span class="prompt">$</span> inbox add <span class="command-text">'A calmer way to collect ideas'</span> -t product</code>
+            <p><span class="success-mark">✓</span> <span data-i18n="captured">Captured</span> <strong>a83f912b</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-strip" aria-label="Product promise">
+        <p data-i18n="promise">No account. No cloud dependency. No process waiting in the background.</p>
+      </section>
+
+      <section class="section features" id="features">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="featuresEyebrow">BUILT FOR THE MOMENT</p>
+          <h2 data-i18n="featuresTitle">Less ceremony.<br>More ideas kept.</h2>
+          <p data-i18n="featuresLede">inbox stays out of the way while giving every note enough structure to become useful later.</p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card feature-card-primary">
+            <span class="feature-number">01</span>
+            <div class="mini-command"><span>$</span> inbox add '…' -t idea</div>
+            <h3 data-i18n="featureCaptureTitle">Capture in one line</h3>
+            <p data-i18n="featureCaptureText">Add a thought with tags, or pipe multiline text from another tool. The command returns immediately with a short ID.</p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-number">02</span>
+            <div class="tag-cloud" aria-hidden="true">
+              <span>#product</span><span>#reading</span><span>#next</span>
+            </div>
+            <h3 data-i18n="featureFindTitle">Recall without organizing first</h3>
+            <p data-i18n="featureFindText">Search full note bodies, filter by tags, and use dynamic shell completion for commands, options, tags, and note IDs.</p>
+          </article>
+
+          <article class="feature-card feature-card-dark">
+            <span class="feature-number">03</span>
+            <div class="review-list" aria-hidden="true">
+              <span><b>01</b><i></i><em>recent</em></span>
+              <span><b>02</b><i></i><em>often viewed</em></span>
+              <span><b>03</b><i></i><em>recent</em></span>
+            </div>
+            <h3 data-i18n="featureReviewTitle">Let good ideas resurface</h3>
+            <p data-i18n="featureReviewText">Review selects a small set using recency and view history, then tells you the simple reason each note was chosen.</p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-number">04</span>
+            <div class="safety-visual" aria-hidden="true">
+              <span>edit</span><span>trash</span><span>backup</span><span>verify</span>
+            </div>
+            <h3 data-i18n="featureSafeTitle">Change things safely</h3>
+            <p data-i18n="featureSafeText">Edit notes and tags, recover deletions from trash, and create validated backups before moving your library.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section workflow" id="workflow">
+        <div class="workflow-copy">
+          <p class="eyebrow" data-i18n="workflowEyebrow">ONE SIMPLE LOOP</p>
+          <h2 data-i18n="workflowTitle">Capture now.<br>Shape later.</h2>
+          <p data-i18n="workflowLede">Each day is a readable Markdown file. inbox adds the speed, IDs, search, and recovery around it while the words remain yours.</p>
+          <a class="text-link" href="https://github.com/amcones/inbox-cli/blob/main/docs/FORMAT.md"><span data-i18n="formatLink">See the storage format</span> <span aria-hidden="true">↗</span></a>
+        </div>
+
+        <ol class="workflow-steps">
+          <li>
+            <span class="step-icon">+</span>
+            <div><strong data-i18n="step1Title">Add</strong><p data-i18n="step1Text">Put the thought down before context switching.</p></div>
+            <code>inbox add</code>
+          </li>
+          <li>
+            <span class="step-icon">⌕</span>
+            <div><strong data-i18n="step2Title">Find</strong><p data-i18n="step2Text">Search words, tags, dates, or recent IDs.</p></div>
+            <code>inbox search</code>
+          </li>
+          <li>
+            <span class="step-icon">↗</span>
+            <div><strong data-i18n="step3Title">Review</strong><p data-i18n="step3Text">Bring recent and often-viewed ideas back.</p></div>
+            <code>inbox review</code>
+          </li>
+          <li>
+            <span class="step-icon">✓</span>
+            <div><strong data-i18n="step4Title">Keep</strong><p data-i18n="step4Text">Edit, restore, back up, and verify confidently.</p></div>
+            <code>inbox backup</code>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section local-first">
+        <div class="local-visual" aria-hidden="true">
+          <div class="file-card file-back"><small>2026 / 09</small><strong>29.md</strong></div>
+          <div class="file-card file-front">
+            <small>2026 / 09</small><strong>30.md</strong>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="local-copy">
+          <p class="eyebrow" data-i18n="localEyebrow">LOCAL BY DEFAULT</p>
+          <h2 data-i18n="localTitle">Your notes stay ordinary.</h2>
+          <p data-i18n="localText">Open them with any editor. Sync them with any tool. Back them up like any other folder. inbox stores notes by day and keeps the format human-readable.</p>
+          <ul>
+            <li data-i18n="localPoint1">Readable daily Markdown</li>
+            <li data-i18n="localPoint2">No account or proprietary database</li>
+            <li data-i18n="localPoint3">Built-in integrity checks and backup verification</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section install" id="install">
+        <div class="install-heading">
+          <p class="eyebrow" data-i18n="installEyebrow">START IN MINUTES</p>
+          <h2 data-i18n="installTitle">One small binary.<br>Three desktop platforms.</h2>
+        </div>
+        <div class="install-panel">
+          <div class="platforms" role="tablist" aria-label="Installation platform">
+            <button class="platform-tab active" type="button" role="tab" aria-selected="true" data-platform="macos">macOS</button>
+            <button class="platform-tab" type="button" role="tab" aria-selected="false" data-platform="linux">Linux</button>
+            <button class="platform-tab" type="button" role="tab" aria-selected="false" data-platform="windows">Windows</button>
+          </div>
+          <div class="install-command">
+            <code id="install-command">tar -xzf inbox-macos-aarch64.tar.gz</code>
+            <button class="copy-button" type="button" data-i18n-aria="copyLabel" aria-label="Copy command"><span data-i18n="copy">Copy</span></button>
+          </div>
+          <p data-i18n="installHint">Download the matching archive from GitHub Releases, extract it, and place inbox on your PATH.</p>
+          <div class="install-actions">
+            <a class="button button-light" href="https://github.com/amcones/inbox-cli/releases/latest" data-i18n="allDownloads">All downloads</a>
+            <a class="text-link light-link" href="https://github.com/amcones/inbox-cli#install"><span data-i18n="installGuide">Installation guide</span> <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing">
+        <img src="assets/inbox-icon.svg" width="128" height="128" alt="">
+        <p class="eyebrow" data-i18n="closingEyebrow">A PLACE FOR EVERY LINE.</p>
+        <h2 data-i18n="closingTitle">Make room for the next thought.</h2>
+        <a class="button button-primary" href="https://github.com/amcones/inbox-cli" data-i18n="viewGithub">View on GitHub</a>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand footer-brand" href="#top"><img src="assets/favicon.svg" width="28" height="28" alt=""><span>inbox</span></a>
+      <p data-i18n="footer">Open source under the MIT License.</p>
+      <div><a href="https://github.com/amcones/inbox-cli/blob/main/README.md">English</a><a href="https://github.com/amcones/inbox-cli/blob/main/README.zh-CN.md">中文</a></div>
+    </footer>
+  </body>
+</html>

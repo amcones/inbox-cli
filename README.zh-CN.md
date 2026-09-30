@@ -1,6 +1,6 @@
 # inbox
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+[产品主页](https://amcones.cn/inbox-cli/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
 **极简 CLI 灵感笔记工具。**
 
@@ -195,4 +195,4 @@ inbox help --lang en
 
 ## 项目文档
 
-[开发与贡献](CONTRIBUTE.md) · [性能测量](docs/BENCHMARK.md) · [架构评估](docs/ARCHITECTURE.md) · [更新记录](CHANGELOG.md) · [MIT 许可证](LICENSE)
+[产品主页](https://amcones.cn/inbox-cli/) · [品牌美术资源](art/README.md) · [开发与贡献](CONTRIBUTE.md) · [性能测量](docs/BENCHMARK.md) · [架构评估](docs/ARCHITECTURE.md) · [更新记录](CHANGELOG.md) · [MIT 许可证](LICENSE)

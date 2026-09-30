@@ -69,7 +69,7 @@ jobs:
           esac
 
   quality:
-    name: Rust quality
+    name: Project quality
     runs-on: ubuntu-24.04
 
     steps:
@@ -87,6 +87,9 @@ jobs:
 
       - name: Run tests
         run: cargo test --locked
+
+      - name: Validate introducing site
+        run: python3 scripts/check-site.py
 
   msrv:
     name: Rust 1.89
@@ -194,4 +197,4 @@ jobs:
           exit 1
 
       - name: Checks passed
-        run: echo "All required source, quality, MSRV, platform, and script checks passed."
+        run: echo "All required source, project quality, MSRV, platform, and script checks passed."

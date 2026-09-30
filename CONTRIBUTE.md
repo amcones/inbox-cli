@@ -79,4 +79,17 @@ Release preparation must keep `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and bo
 
 ## Documentation
 
-Keep [README.md](README.md) in English and [docs/README.zh-CN.md](README.zh-CN.md) in Chinese, with reciprocal links and equivalent command semantics. Keep onboarding and everyday use in those files; place implementation details here or in `docs/`. Describe breaking CLI changes and recovery limitations explicitly. Agent-specific workflow rules live in [AGENT.md](AGENTS.md).
+Keep [README.md](README.md) in English and [docs/README.zh-CN.md](README.zh-CN.md) in Chinese, with reciprocal links and equivalent command semantics. Keep onboarding and everyday use in those files; place implementation details here or in `docs/`. Describe breaking CLI changes and recovery limitations explicitly. Agent-specific workflow rules live in [AGENTS.md](AGENTS.md).
+
+## Website and brand assets
+
+The dependency-free introducing site lives in `site/`. Run
+`python3 scripts/check-site.py` after changing its HTML, CSS, JavaScript, or
+assets, then preview both desktop and mobile widths. A push to `main` that
+changes the site deploys it through the GitHub Pages workflow; ordinary topic
+branches do not deploy.
+
+Original application icon exports live in `art/icon/`. Their Figma source,
+node IDs, export date, and intended sizes are recorded in `art/README.md`.
+Commit direct Figma exports there before copying the files needed by the site
+or packaging. Keep temporary Figma asset URLs out of source files.

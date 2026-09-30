@@ -1,6 +1,6 @@
 # inbox
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+[Website](https://amcones.cn/inbox-cli/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
 **Minimalist CLI idea-taking tool.**
 
@@ -195,4 +195,4 @@ If a command reports damaged data, stop writing, make a backup, and run `inbox d
 
 ## Project
 
-[Development and contributions](CONTRIBUTE.md) · [Performance measurements](docs/BENCHMARK.md) · [Architecture assessment](docs/ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [MIT license](LICENSE)
+[Introducing website](https://amcones.cn/inbox-cli/) · [Brand assets](art/README.md) · [Development and contributions](CONTRIBUTE.md) · [Performance measurements](docs/BENCHMARK.md) · [Architecture assessment](docs/ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [MIT license](LICENSE)

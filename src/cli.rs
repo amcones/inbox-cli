@@ -14,7 +14,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox review [-n 数量]           回顾优先候选，默认 5 条
   inbox search <关键词> [-t 标签]... 搜索完整正文
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
-  inbox delete <ID前缀>            将灵感移入回收站
+  inbox delete <ID前缀>            无标签时移入回收站；指定 -t 时删除这些标签
   inbox delete today [--yes]       确认后将今天的灵感移入回收站
   inbox delete range [-y 年] [-m 月] [-d 日] [-h 开始 结束]
                                     按当天小时范围移入回收站（默认当前日期、00 24）
@@ -24,7 +24,6 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
-  inbox completions <shell>       生成 bash、zsh、fish 或 powershell 补全脚本
 
 选项:
   -t, --tag <标签>       添加或筛选标签，可重复；英文统一为小写
@@ -53,7 +52,7 @@ Usage:
   inbox review [-n count]          Review priority candidates, default 5
   inbox search <query> [-t tag]... Search complete note bodies
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
-  inbox delete <ID-prefix>         Move an idea to trash
+  inbox delete <ID-prefix>         Move to trash, or remove the supplied tags
   inbox delete today [--yes]       Move today's ideas to trash after confirmation
   inbox delete range [-y year] [-m month] [-d day] [-h start end]
                                     Move a day's hour range (defaults: today, 00 24)
@@ -63,7 +62,6 @@ Usage:
   inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
-  inbox completions <shell>       Generate bash, zsh, fish, or powershell completion
 
 Options:
   -t, --tag <tag>         Add/filter a tag; repeatable; ASCII is lowercased
@@ -126,6 +124,10 @@ pub enum Command {
         target: DeleteTarget,
         yes: bool,
     },
+    DeleteTags {
+        prefix: String,
+        tags: Vec<String>,
+    },
     Trash {
         empty: bool,
         yes: bool,
@@ -135,9 +137,6 @@ pub enum Command {
     },
     Tags,
     Doctor,
-    Completions {
-        shell: crate::completion::Shell,
-    },
     Help,
     Version,
 }
@@ -471,10 +470,10 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             if positional.len() == 2
                 && !(positional[0] == "delete" && positional[1] == "range") =>
         {
-            if list_options || tags_seen || clear_tags {
+            if list_options || clear_tags || (positional[0] == "show" && tags_seen) {
                 return Err(crate::i18n::text(
                     "show/delete 不接受列表或标签选项",
-                    "show/delete do not accept list or tag options",
+                    "show does not accept list or tag options",
                 )
                 .into());
             }
@@ -499,9 +498,32 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                             )
                             .into());
                         }
+                        if tags_seen {
+                            if tags.is_empty() {
+                                return Err(crate::i18n::text(
+                                    "至少需要一个标签",
+                                    "At least one tag is required",
+                                )
+                                .into());
+                            }
+                            return Ok(Cli {
+                                dir,
+                                command: Command::DeleteTags {
+                                    prefix: value,
+                                    tags,
+                                },
+                            });
+                        }
                         DeleteTarget::Id(value)
                     }
                 };
+                if tags_seen {
+                    return Err(crate::i18n::text(
+                        "批量删除不能指定标签",
+                        "Bulk deletion cannot specify tags",
+                    )
+                    .into());
+                }
                 Command::Delete { target, yes }
             } else {
                 if yes {
@@ -582,16 +604,6 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 Command::Tags
             } else {
                 Command::Doctor
-            }
-        }
-        "completions" if positional.len() == 2 => {
-            reject(
-                list_options || no_track || yes || tags_seen || clear_tags,
-                "completions 不接受其它选项",
-                "completions does not accept other options",
-            )?;
-            Command::Completions {
-                shell: positional[1].parse()?,
             }
         }
         _ => {

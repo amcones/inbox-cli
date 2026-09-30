@@ -14,7 +14,11 @@ inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped
 
 ## Install
 
+### Prebuilt release
+
 Download an archive from [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest). Each archive has a matching `.sha256` checksum file.
+
+#### macOS
 
 | Platform | Archive |
 |---|---|
@@ -24,7 +28,7 @@ Download an archive from [GitHub Releases](https://github.com/amcones/inbox-cli/
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
-On macOS or Linux, extract the archive and put the binary in your `PATH`. For example, on Apple Silicon:
+Extract the archive and put the binary in your `PATH`. For example, on Apple Silicon:
 
 ```bash
 tar -xzf inbox-macos-aarch64.tar.gz
@@ -33,9 +37,21 @@ install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
 inbox --version
 ```
 
-Ensure `~/.local/bin` is in your `PATH`. On Windows, extract the ZIP, add the folder containing `inbox.exe` to `PATH`, and run `inbox --version` in PowerShell.
+Ensure `~/.local/bin` is in your `PATH`.
 
-With Rust 1.89 or newer, clone the repository and use the build or install script:
+#### Linux
+
+Use the ARM64 or x86_64 archive, extract it, and put `inbox` in a directory on your `PATH`.
+
+#### Windows
+
+Extract the ZIP, add the folder containing `inbox.exe` to `PATH`, and run `inbox --version` in PowerShell.
+
+### Build and install from source
+
+#### macOS and Linux
+
+With Rust 1.89 or newer:
 
 ```bash
 git clone https://github.com/amcones/inbox-cli
@@ -44,7 +60,9 @@ cd inbox-cli
 ./scripts/install.sh
 ```
 
-The Unix installer puts the binary in `~/.local/bin` and installs completion for the detected Bash, Zsh, or Fish shell. Override these choices with `--bin-dir` and `--shell`; run `./scripts/install.sh --help` for details. On Windows:
+The installer writes PATH and completion setup to the detected shell configuration. Override the destination with `--bin-dir` and `--shell`; run `./scripts/install.sh --help` for details.
+
+#### Windows
 
 ```powershell
 git clone https://github.com/amcones/inbox-cli
@@ -53,7 +71,17 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox` and writes `inbox-completion.ps1` beside the executable. Both installers report when their binary directory still needs to be added to `PATH`. To install a published source revision directly with Cargo, use `cargo install --git ssh://git@github.com/amcones/inbox-cli.git --locked`.
+The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists that directory in the user PATH, and loads completion from the PowerShell profile.
+
+### Cargo
+
+#### macOS, Linux, and Windows
+
+With Rust 1.89 or newer, install the published source revision directly:
+
+```bash
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.1 --locked
+```
 
 ## Capture, find, and refine
 
@@ -92,26 +120,7 @@ ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust`
 
 ## Command completion
 
-The install scripts generate completion automatically. For a manual installation, generate completion for your shell once, then restart the shell. For Zsh:
-
-```bash
-mkdir -p ~/.zfunc
-inbox completions zsh > ~/.zfunc/_inbox
-echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
-echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
-```
-
-For Bash, source the generated script from your shell configuration. Fish and PowerShell can load the generated script directly:
-
-```bash
-inbox completions bash > ~/.inbox-completion.bash
-echo 'source ~/.inbox-completion.bash' >> ~/.bashrc
-mkdir -p ~/.config/fish/completions
-inbox completions fish > ~/.config/fish/completions/inbox.fish
-inbox completions powershell > inbox-completion.ps1
-```
-
-For PowerShell, dot-source `inbox-completion.ps1` from your profile. Supported shell names are `bash`, `zsh`, `fish`, and `powershell`.
+The install scripts deploy dynamic completion for Bash, Zsh, Fish, and PowerShell. They complete top-level commands and, for `show`, `restore`, and `delete`, query the 20 most recent note IDs. The Unix installer adds the completion file to the detected shell's standard user directory; for Zsh it also prints the `fpath` and `compinit` setup to add to `~/.zshrc`. PowerShell users should dot-source the installed `inbox-completion.ps1` from their profile.
 
 ## Delete and recover
 

@@ -6,6 +6,7 @@ project_dir="$(cd -- "$script_dir/.." && pwd)"
 bin_dir="${INBOX_BIN_DIR:-${HOME:?HOME is required}/.local/bin}"
 shell_name="auto"
 skip_build=false
+shell_config=""
 
 usage() {
     cat <<'EOF'
@@ -81,7 +82,37 @@ case "$shell_name" in
 esac
 if [[ -n "$completion_path" ]]; then
     mkdir -p "$(dirname -- "$completion_path")"
-    "$bin_dir/inbox" completions "$shell_name" > "$completion_path"
+    cp "$script_dir/completion.$shell_name" "$completion_path"
+fi
+
+append_once() {
+    local line="$1"
+    local file="$2"
+    mkdir -p "$(dirname -- "$file")"
+    touch "$file"
+    grep -Fqx -- "$line" "$file" 2>/dev/null || printf '%s\n' "$line" >> "$file"
+}
+
+if [[ "$shell_name" != none ]]; then
+    printf -v quoted_bin '%q' "$bin_dir"
+    case "$shell_name" in
+        bash)
+            shell_config="${BASH_ENV:-$HOME/.bashrc}"
+            append_once "export PATH=$quoted_bin:\$PATH" "$shell_config"
+            printf -v quoted_completion '%q' "$completion_path"
+            append_once "source $quoted_completion" "$shell_config"
+            ;;
+        zsh)
+            shell_config="${ZDOTDIR:-$HOME}/.zshrc"
+            append_once "export PATH=$quoted_bin:\$PATH" "$shell_config"
+            append_once 'fpath=(~/.zfunc $fpath)' "$shell_config"
+            append_once 'autoload -Uz compinit && compinit' "$shell_config"
+            ;;
+        fish)
+            shell_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
+            append_once "fish_add_path '$bin_dir'" "$shell_config"
+            ;;
+    esac
 fi
 
 printf 'Installed inbox to %s\n' "$bin_dir/inbox"
@@ -89,7 +120,9 @@ if [[ -n "$completion_path" ]]; then
     printf 'Installed %s completion to %s\n' "$shell_name" "$completion_path"
 fi
 if [[ "$shell_name" == zsh ]]; then
-    printf '%s\n' 'Ensure ~/.zshrc contains: fpath=(~/.zfunc $fpath); autoload -Uz compinit && compinit'
+    printf 'Updated shell configuration: %s\n' "$shell_config"
+elif [[ -n "$shell_config" ]]; then
+    printf 'Updated shell configuration: %s\n' "$shell_config"
 fi
 case ":$PATH:" in
     *":$bin_dir:"*) ;;

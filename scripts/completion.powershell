@@ -1,0 +1,19 @@
+Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $commands = 'add','edit','list','search','review','show','delete','trash','restore','tags','doctor'
+    $elements = @($commandAst.CommandElements)
+    if ($elements.Count -le 2) {
+        $commands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+        return
+    }
+    $subcommand = $elements[1].Value
+    if ($elements.Count -eq 3 -and $subcommand -in @('show','restore','delete')) {
+        $ids = @(inbox list -n 20 2>$null | ForEach-Object { ($_ -split '\s+')[0] })
+        if ($subcommand -eq 'delete') { $ids += @('today','range','all') }
+        $ids | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+    }
+}

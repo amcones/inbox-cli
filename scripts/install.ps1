@@ -21,6 +21,7 @@ if (-not $NoBuild) {
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $InstalledBinary = Join-Path $BinDir "inbox.exe"
 Copy-Item -LiteralPath $Binary -Destination $InstalledBinary -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "update.ps1") -Destination (Join-Path $BinDir "inbox-update.ps1") -Force
 
 if ($Shell -eq "powershell") {
     $CompletionPath = Join-Path $BinDir "inbox-completion.ps1"
@@ -45,3 +46,4 @@ if ($Shell -eq "powershell") {
 }
 
 Write-Output "Installed inbox to $InstalledBinary"
+Write-Output "Installed updater to $(Join-Path $BinDir 'inbox-update.ps1')"

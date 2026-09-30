@@ -24,7 +24,7 @@ The project uses Rust edition 2024 and supports Rust 1.89 or newer. Runtime depe
 
 ```bash
 cargo build --release --locked
-./target/release/inbox --help
+./target/release/inbox help
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked

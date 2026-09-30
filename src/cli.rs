@@ -24,6 +24,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
+  inbox help                      显示帮助
 
 选项:
   -t, --tag <标签>       添加或筛选标签，可重复；英文统一为小写
@@ -35,7 +36,6 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   -y, --yes             跳过批量删除确认（range 中 -y 表示年份，请用 --yes）
       --dir <目录>      数据目录（优先于 INBOX_DIR，默认 ~/inbox）
       --lang <语言>     auto（默认）、zh（中文）或 en（英文）
-  -h, --help            显示帮助
   -V, --version         显示版本
 
 列表、搜索和回顾不计浏览次数；搜索不区分大小写；正文里的 #文字不会自动成为标签。
@@ -62,6 +62,7 @@ Usage:
   inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
+  inbox help                      Show help
 
 Options:
   -t, --tag <tag>         Add/filter a tag; repeatable; ASCII is lowercased
@@ -73,7 +74,6 @@ Options:
   -y, --yes              Skip confirmation (-y is year in range; use --yes)
       --dir <directory>  Overrides INBOX_DIR; default ~/inbox
       --lang <language>  auto (default), zh (Chinese), or en (English)
-  -h, --help             Show help
   -V, --version          Show version
 
 Lists, searches, and reviews do not count as views. Search is case-insensitive. #words in content do not become tags.
@@ -279,12 +279,6 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                     return Err(crate::i18n::text("日期必须为 1–31", "The day must be 1–31").into());
                 }
                 range_day = Some(value);
-            }
-            Short('h') | Long("help") => {
-                return Ok(Cli {
-                    dir,
-                    command: Command::Help,
-                });
             }
             Short('V') | Long("version") => {
                 return Ok(Cli {
@@ -616,6 +610,14 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 Command::Doctor
             }
         }
+        "help" if positional.len() == 1 => {
+            reject(
+                list_options || no_track || yes || tags_seen || clear_tags,
+                "help 不接受其它选项",
+                "help does not accept these options",
+            )?;
+            Command::Help
+        }
         "__complete" if positional.len() == 2 => {
             reject(
                 list_options || no_track || yes || tags_seen || clear_tags,
@@ -638,8 +640,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
         }
         _ => {
             return Err(crate::i18n::text(
-                "未知命令或缺少参数；运行 inbox --help 查看用法",
-                "Unknown command or missing argument; run inbox --help for usage",
+                "未知命令或缺少参数；运行 inbox help 查看用法",
+                "Unknown command or missing argument; run inbox help for usage",
             )
             .into());
         }

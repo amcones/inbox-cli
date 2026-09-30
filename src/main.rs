@@ -21,7 +21,7 @@ fn main() -> ExitCode {
         Err(e) => {
             eprintln!(
                 "inbox: {e}\n{}",
-                i18n::text("运行 inbox --help 查看用法", "Run inbox --help for usage")
+                i18n::text("运行 inbox help 查看用法", "Run inbox help for usage")
             );
             return ExitCode::from(2);
         }

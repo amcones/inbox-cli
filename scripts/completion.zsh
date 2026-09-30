@@ -23,13 +23,13 @@ _inbox() {
     'add:add an idea' 'edit:edit an idea' 'list:list ideas'
     'search:search ideas' 'review:review priority candidates' 'show:show an idea'
     'delete:delete ideas or tags' 'trash:list or empty trash' 'restore:restore an idea'
-    'tags:list tags' 'doctor:check stored data'
+    'tags:list tags' 'doctor:check stored data' 'help:show help'
   )
-  common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)' '(-h --help)'{-h,--help}'[show help]' '(-V --version)'{-V,--version}'[show version]')
-  range_common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)' '--help[show help]' '(-V --version)'{-V,--version}'[show version]')
+  common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)')
+  range_common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)')
   if (( CURRENT == 2 )); then
     _describe 'command' commands
-    _values 'global option' --dir --lang -h --help -V --version
+    _values 'global option' --dir --lang -V --version
     return
   fi
   command=$words[2]
@@ -60,7 +60,7 @@ _inbox() {
       else
         _arguments $common '*'{-t,--tag}'[remove a tag]:tag:_inbox_tags' '1:target:_inbox_delete_targets'
       fi ;;
-    tags|doctor) _arguments $common ;;
+    tags|doctor|help) _arguments $common ;;
     *) _describe 'command' commands ;;
   esac
 }

@@ -70,7 +70,7 @@ fn system_language() -> Language {
     Language::En
 }
 
-/// A lexical prepass makes `--help --lang en` and argument errors use the
+/// A lexical prepass makes `help --lang en` and argument errors use the
 /// requested language, without interpreting message/tag values as options.
 pub fn configure(args: &[OsString]) -> Result<()> {
     use lexopt::{

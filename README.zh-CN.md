@@ -1,8 +1,8 @@
 # inbox
 
-[English](../README.md) · [简体中文](README.zh-CN.md)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-**一条命令记下灵感，需要时快速找回。**
+**极简 CLI 灵感笔记工具。**
 
 inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 Markdown 文件中。无需账号，也无需后台服务。
 
@@ -105,8 +105,8 @@ inbox --lang en --help
 
 **备份整个数据目录，包括 `.inbox`**，其中包含浏览历史和回收站。复制前先停止 inbox 命令。隐藏文件不等于加密；不要再用不支持回收站的旧版本操作同一个库。
 
-发生数据损坏时先停止写入、备份，然后运行 `inbox doctor` 检查正文、浏览日志和回收站。它不会猜测如何修复损坏内容。手动编辑 Markdown 时应保留元数据与记录标记，避免并发写入。详见[存储与恢复说明](FORMAT.md)。
+发生数据损坏时先停止写入、备份，然后运行 `inbox doctor` 检查正文、浏览日志和回收站。它不会猜测如何修复损坏内容。手动编辑 Markdown 时应保留元数据与记录标记，避免并发写入。详见[存储与恢复说明](docs/FORMAT.md)。
 
 ## 项目文档
 
-[开发与贡献](../CONTRIBUTE.md) · [性能测量](BENCHMARK.md) · [架构评估](ARCHITECTURE.md) · [更新记录](../CHANGELOG.md) · [MIT 许可证](../LICENSE)
+[开发与贡献](CONTRIBUTE.md) · [性能测量](docs/BENCHMARK.md) · [架构评估](docs/ARCHITECTURE.md) · [更新记录](CHANGELOG.md) · [MIT 许可证](LICENSE)

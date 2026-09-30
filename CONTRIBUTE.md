@@ -1,6 +1,6 @@
 # Contributing to inbox
 
-[User guide](README.md) · [中文使用指南](docs/README.zh-CN.md) · [Agent instructions](AGENT.md)
+[User guide](README.md) · [中文使用指南](README.zh-CN.md) · [Agent instructions](AGENTS.md)
 
 ## Workflow
 
@@ -67,4 +67,4 @@ Release preparation must keep `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and bo
 
 ## Documentation
 
-Keep [README.md](README.md) in English and [docs/README.zh-CN.md](docs/README.zh-CN.md) in Chinese, with reciprocal links and equivalent command semantics. Keep onboarding and everyday use in those files; place implementation details here or in `docs/`. Describe breaking CLI changes and recovery limitations explicitly. Agent-specific workflow rules live in [AGENT.md](AGENT.md).
+Keep [README.md](README.md) in English and [docs/README.zh-CN.md](README.zh-CN.md) in Chinese, with reciprocal links and equivalent command semantics. Keep onboarding and everyday use in those files; place implementation details here or in `docs/`. Describe breaking CLI changes and recovery limitations explicitly. Agent-specific workflow rules live in [AGENT.md](AGENTS.md).

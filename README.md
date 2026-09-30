@@ -1,8 +1,8 @@
 # inbox
 
-[English](README.md) · [简体中文](docs/README.zh-CN.md)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-**Capture an idea in one command. Find it when you need it.**
+**Minimalist CLI inspired note-taking tool.**
 
 inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped by day. It runs when you call it, with no account or background service.
 

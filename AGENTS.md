@@ -3,7 +3,8 @@
 ## Required workflow
 
 - Read `CONTRIBUTE.md` and applicable repository instructions before editing.
-- Develop on `develop`; open PRs from `develop` to `main`.
+- Branch from `develop` into `feat/*`, `fix/*`, `docs/*`, `refactor/*`, or another topic prefix documented in `CONTRIBUTE.md`; target `develop` and normally squash these PRs. Only this repository's `develop` may open release PRs to `main`, using merge commits.
+- Synchronize `main` back into `develop` with merge commits after releases. Never squash or rebase history synchronization, and do not rewrite either shared branch.
 - Inspect the working tree and branch state before switching or updating. Preserve unrelated work and avoid unauthorized history rewrites.
 - The user manually merges every PR. Do not merge, enable auto-merge, bypass approval, or modify repository rules to unblock yourself.
 - Finish by linking the PR, describing validation and any remaining failures, and leaving the PR for the user to merge.

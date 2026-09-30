@@ -80,7 +80,7 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.2 --locked
 ```
 
 ## Capture, find, and refine
@@ -120,7 +120,7 @@ ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust`
 
 ## Command completion
 
-The install scripts deploy dynamic completion for Bash, Zsh, Fish, and PowerShell. They complete top-level commands and, for `show`, `restore`, and `delete`, query the 20 most recent note IDs. The Unix installer adds the completion file to the detected shell's standard user directory; for Zsh it also prints the `fpath` and `compinit` setup to add to `~/.zshrc`. PowerShell users should dot-source the installed `inbox-completion.ps1` from their profile.
+The install scripts deploy dynamic completion for Bash, Zsh, Fish, and PowerShell. Completion covers commands, command-specific options, tag values, sort and language values, common limits, dates and hours, active note IDs for `show`, `edit`, and `delete`, and trashed note IDs for `restore`. The Unix installer writes the required setup to the detected shell configuration; the PowerShell installer updates the user profile.
 
 ## Delete and recover
 

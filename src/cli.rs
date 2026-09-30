@@ -137,8 +137,18 @@ pub enum Command {
     },
     Tags,
     Doctor,
+    Complete {
+        kind: CompletionKind,
+    },
     Help,
     Version,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompletionKind {
+    ActiveIds,
+    TrashIds,
+    Tags,
 }
 
 #[derive(Debug)]
@@ -605,6 +615,26 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             } else {
                 Command::Doctor
             }
+        }
+        "__complete" if positional.len() == 2 => {
+            reject(
+                list_options || no_track || yes || tags_seen || clear_tags,
+                "内部补全命令不接受其它选项",
+                "The internal completion command does not accept options",
+            )?;
+            let kind = match positional[1].as_str() {
+                "active-ids" => CompletionKind::ActiveIds,
+                "trash-ids" => CompletionKind::TrashIds,
+                "tags" => CompletionKind::Tags,
+                _ => {
+                    return Err(crate::i18n::text(
+                        "未知的内部补全类型",
+                        "Unknown internal completion kind",
+                    )
+                    .into());
+                }
+            };
+            Command::Complete { kind }
         }
         _ => {
             return Err(crate::i18n::text(

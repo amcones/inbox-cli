@@ -1,6 +1,6 @@
 use inbox::{
     Result,
-    cli::{self, Cli, Command, DeleteTarget},
+    cli::{self, Cli, Command, CompletionKind, DeleteTarget},
     deletion, editing, i18n,
     model::{MAX_CONTENT_BYTES, Note, terminal_text},
     query,
@@ -371,6 +371,34 @@ fn run(cli: Cli) -> Result<()> {
                     "OK: {files} day files, {notes} notes, {views} views, {trashed} in trash"
                 )
             )?;
+        }
+        Command::Complete { kind } => {
+            if let Some(store) = Store::open(&root, false)? {
+                match kind {
+                    CompletionKind::ActiveIds => {
+                        for note in query::list(
+                            &store,
+                            &[],
+                            false,
+                            cli::Sort::Time,
+                            100,
+                            jiff::Timestamp::now(),
+                        )? {
+                            writeln!(out, "{}", note.short_id())?;
+                        }
+                    }
+                    CompletionKind::TrashIds => {
+                        for (_, note) in trash::list(&store)? {
+                            writeln!(out, "{}", note.short_id())?;
+                        }
+                    }
+                    CompletionKind::Tags => {
+                        for (tag, _) in query::tags(&store)? {
+                            writeln!(out, "{}", terminal_text(&tag, false))?;
+                        }
+                    }
+                }
+            }
         }
         Command::Help | Command::Version => unreachable!(),
     }

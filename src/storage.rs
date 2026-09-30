@@ -30,13 +30,23 @@ impl Store {
         ensure_dir(&state)?;
         let (lock, _) = open_rw(&state.join("write.lock"), false)?;
         let version = state.join("format-version");
-        if exclusive || !version.try_exists()? || crate::deletion::pending(&root)? {
+        if exclusive
+            || !version.try_exists()?
+            || crate::deletion::pending(&root)?
+            || crate::backup::pending(&root)?
+        {
             lock.lock()?;
             if !version.try_exists()? {
                 let (mut file, _) = open_rw(&version, false)?;
                 file.write_all(FORMAT)?;
                 file.sync_all()?;
                 sync_dir(&state)?;
+            }
+            while crate::backup::pending(&root)? {
+                crate::backup::recover(&root)?;
+            }
+            while crate::deletion::pending(&root)? {
+                crate::deletion::recover(&root)?;
             }
             if !exclusive {
                 lock.unlock()?;
@@ -45,16 +55,19 @@ impl Store {
         } else {
             lock.lock_shared()?;
         }
-        if fs::read(&version)? != FORMAT {
-            return Err(crate::message!(
-                "{}: 不支持或损坏的存储格式版本",
-                "{}: unsupported or corrupt storage format version",
-                version.display()
-            )
-            .into());
-        }
         // Check after acquiring the lock, including after each downgrade: a
         // concurrent writer can commit and exit in the unlock/relock gap.
+        while crate::backup::pending(&root)? {
+            if !exclusive {
+                lock.unlock()?;
+                lock.lock()?;
+            }
+            crate::backup::recover(&root)?;
+            if !exclusive {
+                lock.unlock()?;
+                lock.lock_shared()?;
+            }
+        }
         while crate::deletion::pending(&root)? {
             if !exclusive {
                 lock.unlock()?;
@@ -65,6 +78,14 @@ impl Store {
                 lock.unlock()?;
                 lock.lock_shared()?;
             }
+        }
+        if fs::read(&version)? != FORMAT {
+            return Err(crate::message!(
+                "{}: 不支持或损坏的存储格式版本",
+                "{}: unsupported or corrupt storage format version",
+                version.display()
+            )
+            .into());
         }
         Ok(Some(Self {
             root,

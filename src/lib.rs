@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod cli;
 pub mod deletion;
 pub mod editing;

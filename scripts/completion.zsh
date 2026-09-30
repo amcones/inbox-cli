@@ -22,7 +22,8 @@ _inbox() {
   commands=(
     'add:add an idea' 'edit:edit an idea' 'list:list ideas'
     'search:search ideas' 'review:review priority candidates' 'show:show an idea'
-    'delete:delete ideas or tags' 'trash:list or empty trash' 'restore:restore an idea'
+    'delete:delete ideas or tags' 'trash:list or empty trash' 'restore:restore an idea or backup'
+    'backup:create a complete backup'
     'tags:list tags' 'doctor:check stored data' 'help:show help'
   )
   common=('--dir[use a data directory]:directory:_directories' '--lang[select language]:language:(auto en zh)')
@@ -44,7 +45,8 @@ _inbox() {
     search) _arguments $common '*'{-t,--tag}'[filter by tag]:tag:_inbox_tags' '--any[match any tag]' '--sort[sort order]:order:(time priority)' '(-n --limit)'{-n,--limit}'[maximum results]:count:(5 10 20 50 100)' '1:query:' ;;
     review) _arguments $common '(-n --limit)'{-n,--limit}'[maximum results]:count:(5 10 20 50 100)' ;;
     show) _arguments $common '--no-track[do not count a view]' '1:idea ID:_inbox_active' ;;
-    restore) _arguments $common '1:trashed idea ID:_inbox_trash' ;;
+    restore) _arguments $common '--from[restore a complete backup]:backup directory:_directories' '--yes[skip full restore confirmation]' '1:trashed idea ID:_inbox_trash' ;;
+    backup) _arguments $common '1:backup directory:_directories' ;;
     trash)
       if [[ $words[2] == empty ]]; then
         _arguments $common '(-y --yes)'{-y,--yes}'[skip confirmation]' '1:action:(empty)'

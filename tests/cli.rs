@@ -79,6 +79,19 @@ impl Drop for Inbox {
     }
 }
 
+fn copy_directory(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let target = destination.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_directory(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
 #[test]
 fn empty_inbox_does_not_create_files() {
     let inbox = Inbox::new();
@@ -1366,6 +1379,189 @@ fn delete_moves_to_trash_restore_preserves_note_and_clears_view_history() {
     let shown = inbox.ok(&["show", id.trim(), "--no-track"]);
     assert!(shown.contains("recover me") && shown.contains("#saved"));
     assert!(inbox.ok(&["doctor"]).contains("1 条记录，0 次浏览"));
+}
+
+#[test]
+fn complete_backup_and_restore_round_trip_notes_views_and_trash() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("snapshot");
+    let active = inbox.ok(&["add", "active before backup", "-t", "Work"]);
+    let trashed = inbox.ok(&["add", "trashed before backup", "-t", "Archive"]);
+    inbox.ok(&["show", active.trim()]);
+    inbox.ok(&["delete", trashed.trim()]);
+
+    let output = inbox.ok(&["backup", backup.to_str().unwrap(), "--lang", "en"]);
+    assert!(output.contains("Backup created"));
+    assert!(backup.join("inbox-backup.json").is_file());
+    assert!(backup.join("data/.inbox/trash").is_dir());
+
+    let later = inbox.ok(&["add", "created after backup"]);
+    inbox.ok(&["delete", active.trim()]);
+    let restored = inbox.ok(&[
+        "restore",
+        "--from",
+        backup.to_str().unwrap(),
+        "--yes",
+        "--lang",
+        "en",
+    ]);
+    assert!(restored.contains("Restore complete"));
+    let safety = restored.split("backed up to ").nth(1).unwrap().trim();
+    assert!(Path::new(safety).join("inbox-backup.json").is_file());
+
+    assert!(
+        inbox
+            .ok(&["show", active.trim(), "--no-track"])
+            .contains("active before backup")
+    );
+    assert!(
+        !inbox
+            .run(&["show", later.trim(), "--no-track"])
+            .status
+            .success()
+    );
+    assert!(inbox.ok(&["trash"]).contains(trashed.trim()));
+    assert!(
+        inbox
+            .ok(&["doctor", "--lang", "en"])
+            .contains("1 notes, 1 views, 1 in trash")
+    );
+
+    fs::remove_dir_all(backup).unwrap();
+    fs::remove_dir_all(safety).unwrap();
+}
+
+#[test]
+fn full_restore_requires_y_and_rejects_a_damaged_backup_without_changes() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("snapshot");
+    let original = inbox.ok(&["add", "keep current"]);
+    inbox.ok(&["backup", backup.to_str().unwrap()]);
+    let later = inbox.ok(&["add", "keep unless confirmed"]);
+
+    let cancelled = inbox.run_input(
+        &[
+            "restore",
+            "--from",
+            backup.to_str().unwrap(),
+            "--lang",
+            "en",
+        ],
+        "n",
+    );
+    assert!(cancelled.status.success());
+    assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Press y to confirm"));
+    assert!(
+        inbox
+            .ok(&["show", later.trim(), "--no-track"])
+            .contains("keep unless confirmed")
+    );
+
+    fs::write(backup.join("data/.inbox/format-version"), "99\n").unwrap();
+    let rejected = inbox.run(&[
+        "restore",
+        "--from",
+        backup.to_str().unwrap(),
+        "--yes",
+        "--lang",
+        "en",
+    ]);
+    assert!(!rejected.status.success());
+    assert!(
+        inbox
+            .ok(&["show", original.trim(), "--no-track"])
+            .contains("keep current")
+    );
+    assert!(
+        inbox
+            .ok(&["show", later.trim(), "--no-track"])
+            .contains("keep unless confirmed")
+    );
+    fs::remove_dir_all(backup).unwrap();
+}
+
+#[test]
+fn committed_full_restore_finishes_after_an_interruption() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("snapshot");
+    let original = inbox.ok(&["add", "in backup"]);
+    inbox.ok(&["backup", backup.to_str().unwrap()]);
+    let later = inbox.ok(&["add", "not in backup"]);
+
+    let pending = inbox.0.join(".inbox/restore-pending");
+    copy_directory(&backup.join("data"), &pending.join("next"));
+    fs::write(pending.join("manifest.json"), br#"{"version":1}"#).unwrap();
+
+    assert!(inbox.ok(&["list"]).contains("in backup"));
+    assert!(
+        inbox
+            .ok(&["show", original.trim(), "--no-track"])
+            .contains("in backup")
+    );
+    assert!(
+        !inbox
+            .run(&["show", later.trim(), "--no-track"])
+            .status
+            .success()
+    );
+    assert!(!pending.exists());
+    fs::remove_dir_all(backup).unwrap();
+}
+
+#[test]
+fn damaged_committed_restore_does_not_replace_current_data() {
+    let inbox = Inbox::new();
+    let backup = inbox.0.with_extension("snapshot");
+    let current = inbox.ok(&["add", "current remains"]);
+    inbox.ok(&["backup", backup.to_str().unwrap()]);
+    let day = inbox.files().pop().unwrap();
+    let before = fs::read(&day).unwrap();
+
+    let pending = inbox.0.join(".inbox/restore-pending");
+    copy_directory(&backup.join("data"), &pending.join("next"));
+    fs::write(pending.join("next/.inbox/format-version"), "99\n").unwrap();
+    fs::write(pending.join("manifest.json"), br#"{"version":1}"#).unwrap();
+
+    assert!(!inbox.run(&["list"]).status.success());
+    assert_eq!(fs::read(day).unwrap(), before);
+    assert!(pending.exists());
+    assert_eq!(current.trim().len(), 8);
+    fs::remove_dir_all(backup).unwrap();
+}
+
+#[test]
+fn backup_rejects_existing_nested_and_symlink_destinations() {
+    let inbox = Inbox::new();
+    inbox.ok(&["add", "safe"]);
+    let existing = inbox.0.with_extension("existing-backup");
+    fs::create_dir(&existing).unwrap();
+    assert!(
+        !inbox
+            .run(&["backup", existing.to_str().unwrap()])
+            .status
+            .success()
+    );
+    assert!(
+        !inbox
+            .run(&["backup", inbox.0.join("backup").to_str().unwrap()])
+            .status
+            .success()
+    );
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        let link = inbox.0.with_extension("backup-link");
+        symlink(&existing, &link).unwrap();
+        assert!(
+            !inbox
+                .run(&["backup", link.to_str().unwrap()])
+                .status
+                .success()
+        );
+        fs::remove_file(link).unwrap();
+    }
+    fs::remove_dir_all(existing).unwrap();
 }
 
 #[test]

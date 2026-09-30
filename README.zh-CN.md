@@ -14,7 +14,11 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 
 ## 安装
 
+### 下载预编译版本
+
 从 [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest) 下载对应压缩包；每个压缩包都附有 `.sha256` 校验文件。
+
+#### macOS
 
 | 平台 | 压缩包 |
 |---|---|
@@ -24,7 +28,7 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
-macOS 和 Linux 解压后，将程序放入 `PATH`。以 Apple Silicon 为例：
+解压后，将程序放入 `PATH`。以 Apple Silicon 为例：
 
 ```bash
 tar -xzf inbox-macos-aarch64.tar.gz
@@ -33,9 +37,21 @@ install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
 inbox --version
 ```
 
-确保 `~/.local/bin` 已在 `PATH` 中。Windows 解压 ZIP 后，将 `inbox.exe` 所在目录加入 `PATH`，在 PowerShell 中运行 `inbox --version`。
+确保 `~/.local/bin` 已在 `PATH` 中。
 
-使用 Rust 1.89 或更新版本时，也可以克隆仓库，通过脚本编译或安装：
+#### Linux
+
+选择 ARM64 或 x86_64 压缩包，解压后将 `inbox` 放入 `PATH` 中的目录。
+
+#### Windows
+
+解压 ZIP，将 `inbox.exe` 所在目录加入 `PATH`，在 PowerShell 中运行 `inbox --version`。
+
+### 从源码编译安装
+
+#### macOS 和 Linux
+
+使用 Rust 1.89 或更新版本：
 
 ```bash
 git clone https://github.com/amcones/inbox-cli
@@ -44,7 +60,9 @@ cd inbox-cli
 ./scripts/install.sh
 ```
 
-Unix 安装脚本默认将程序放到 `~/.local/bin`，并为检测到的 Bash、Zsh 或 Fish 安装补全。可通过 `--bin-dir` 和 `--shell` 修改，运行 `./scripts/install.sh --help` 查看参数。Windows 使用：
+安装脚本会把 PATH 和补全配置写入检测到的 shell 配置文件。可通过 `--bin-dir` 和 `--shell` 修改，运行 `./scripts/install.sh --help` 查看参数。
+
+#### Windows
 
 ```powershell
 git clone https://github.com/amcones/inbox-cli
@@ -53,7 +71,17 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，并在同一目录生成 `inbox-completion.ps1`。如果安装目录尚未加入 `PATH`，脚本会提示。也可使用 `cargo install --git ssh://git@github.com/amcones/inbox-cli.git --locked` 直接安装已发布的源码版本。
+PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持久化用户 PATH，并从 PowerShell 配置文件加载补全。
+
+### Cargo
+
+#### macOS、Linux 和 Windows
+
+使用 Rust 1.89 或更新版本直接安装已发布源码：
+
+```bash
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.1 --locked
+```
 
 ## 记录、查找和完善
 
@@ -92,26 +120,7 @@ inbox edit a83f912b --clear-tags
 
 ## 命令补全
 
-安装脚本会自动生成补全。手动安装时，可为当前 shell 生成一次补全脚本，然后重启 shell。Zsh 示例：
-
-```bash
-mkdir -p ~/.zfunc
-inbox completions zsh > ~/.zfunc/_inbox
-echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
-echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
-```
-
-Bash 可在 shell 配置中加载生成的脚本；Fish 与 PowerShell 可直接加载对应脚本：
-
-```bash
-inbox completions bash > ~/.inbox-completion.bash
-echo 'source ~/.inbox-completion.bash' >> ~/.bashrc
-mkdir -p ~/.config/fish/completions
-inbox completions fish > ~/.config/fish/completions/inbox.fish
-inbox completions powershell > inbox-completion.ps1
-```
-
-PowerShell 用户需在配置文件中点加载 `inbox-completion.ps1`。支持的名称是 `bash`、`zsh`、`fish` 和 `powershell`。
+安装脚本会部署 Bash、Zsh、Fish 和 PowerShell 的动态补全。除了顶层命令外，`show`、`restore` 和 `delete` 后还会调用 `inbox list` 提示最近 20 条灵感的 ID。Unix 安装脚本会把补全写入当前 shell 的用户目录；Zsh 还会提示需要加入 `~/.zshrc` 的 `fpath` 和 `compinit` 配置。PowerShell 用户需在配置文件中点加载安装目录里的 `inbox-completion.ps1`。
 
 ## 删除与恢复
 

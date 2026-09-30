@@ -2,11 +2,18 @@
 
 ## Unreleased
 
+## 0.4.1 — 2026-09-30
+
+- Remove the `inbox completions` subcommand; installers now deploy dynamic shell completion scripts and persist shell configuration.
+- Suggest recent note IDs after `show`, `restore`, and `delete` in Bash, Zsh, Fish, and PowerShell.
+- Remove selected tags from an individual note with repeated `-t` options without moving the note to trash.
+- Reorganize installation documentation by method and operating system.
+
 ## 0.4.0 — 2026-09-30
 
 - Normalize ASCII letters in tags to lowercase and match tag filters without regard to English letter case, while continuing to read older mixed-case tags.
 - Add `inbox review` with an optional result limit, five candidates by default, priority ordering, and short recency/view-frequency reasons.
-- Add generated command completion for Bash, Zsh, Fish, and PowerShell.
+- Add installer-managed shell completion for Bash, Zsh, Fish, and PowerShell.
 - Add release build and user-local installation scripts for Unix shells and PowerShell, including optional completion installation.
 
 ## 0.3.0 — 2026-09-30

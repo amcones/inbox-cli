@@ -277,18 +277,6 @@ fn review_defaults_to_five_explained_candidates_and_honors_limit() {
 }
 
 #[test]
-fn completion_scripts_cover_supported_shells_without_creating_data() {
-    let inbox = Inbox::new();
-    for shell in ["bash", "zsh", "fish", "powershell", "pwsh"] {
-        let script = inbox.ok(&["completions", shell]);
-        assert!(script.contains("review"));
-        assert!(script.contains("delete"));
-    }
-    assert_eq!(inbox.run(&["completions", "cmd"]).status.code(), Some(2));
-    assert!(!inbox.0.exists());
-}
-
-#[test]
 fn stdin_multiline_and_reserved_markers_round_trip() {
     let inbox = Inbox::new();
     let text = "第一行\r\n\r\n- 第二行\r\n<!-- inbox:note {} -->\r\n<!-- inbox:end fake -->\r\n";
@@ -970,7 +958,6 @@ fn invalid_ambiguous_or_damaged_deletions_leave_data_unchanged() {
         vec!["delete", "aaaa"],
         vec!["delete", "bbbb"],
         vec!["delete", &a.meta.id, "--no-track"],
-        vec!["delete", &a.meta.id, "-t", "x"],
     ] {
         assert!(!inbox.run(&args).status.success());
         assert_eq!(fs::read(&path).unwrap(), before);
@@ -986,6 +973,18 @@ fn invalid_ambiguous_or_damaged_deletions_leave_data_unchanged() {
     fs::write(&path, &damaged).unwrap();
     assert!(!inbox.run(&["delete", &a.meta.id]).status.success());
     assert_eq!(fs::read(&path).unwrap(), damaged);
+}
+
+#[test]
+fn deleting_selected_tags_preserves_the_note_and_other_tags() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "idea", "-t", "Keep", "-t", "Remove", "-t", "Other"]);
+    let output = inbox.ok(&["delete", id.trim(), "-t", "REMOVE", "-t", "missing"]);
+    assert!(output.contains("删除 1 个标签"));
+    let shown = inbox.ok(&["show", id.trim(), "--no-track"]);
+    assert!(shown.contains("#keep #other"));
+    assert!(!shown.contains("#remove"));
+    assert!(inbox.ok(&["list"]).contains("idea"));
 }
 
 #[test]

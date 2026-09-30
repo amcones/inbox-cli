@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.5.1 — 2026-09-30
+
+- Add `inbox backup verify <directory>` for read-only validation of backup manifests, notes, view history, and trash.
+- Test that v0.5.0 backup format restores in v0.5.1 and reject unknown backup format versions without modification.
+- Add `inbox info` with the installed version, resolved data directory, storage state, and library counts.
+- Complete the new command and backup action across Bash, Zsh, Fish, and PowerShell.
+
 ## 0.5.0 — 2026-09-30
 
 - Add `inbox backup <directory>` for locked, validated snapshots of Markdown notes, view history, and trash.

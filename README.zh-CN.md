@@ -81,7 +81,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.0 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.1 --locked
 ```
 
 ## 更新
@@ -92,7 +92,7 @@ cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.0 --lo
 
 ```bash
 inbox-update                    # 更新到最新版
-inbox-update --version v0.5.0  # 更新到指定版本
+inbox-update --version v0.5.1  # 更新到指定版本
 ```
 
 如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
@@ -101,7 +101,7 @@ inbox-update --version v0.5.0  # 更新到指定版本
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.5.0
+inbox-update.ps1 -Version v0.5.1
 ```
 
 如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
@@ -136,6 +136,7 @@ inbox edit a83f912b --clear-tags
 | 匹配任意一个标签 | 加上 `--any` |
 | 搜索与筛选组合 | `inbox search '阅读' -t 产品 --sort priority -n 5` |
 | 查看标签及数量 | `inbox tags` |
+| 查看版本、数据目录和库统计 | `inbox info` |
 | 查看但不计浏览次数 | `inbox show <ID> --no-track` |
 | 完整用法 | `inbox help` |
 
@@ -168,10 +169,11 @@ inbox trash empty                   # 确认后永久清空
 
 ```bash
 inbox backup ~/Backups/inbox-2026-09-30
+inbox backup verify ~/Backups/inbox-2026-09-30
 inbox restore --from ~/Backups/inbox-2026-09-30
 ```
 
-备份时会锁定数据目录，检查全部灵感、浏览记录和回收站，再生成带清单的独立目录。目标目录必须尚不存在，且不能放在数据目录内部。备份仍是可直接读取的本地文件，不会加密。
+备份时会锁定数据目录，检查全部灵感、浏览记录和回收站，再生成带清单的独立目录。`backup verify` 会重复完整检查，但不会锁定或修改快照，也可用于只读介质。目标目录必须尚不存在，且不能放在数据目录内部。备份仍是可直接读取的本地文件，不会加密。
 
 整库还原会先校验快照，再等待按下 `y`；其他任意键都会取消。自动化脚本可用 `--yes` 跳过确认。覆盖前会在当前数据目录旁自动创建名为 `inbox.before-restore-…` 的安全快照，并输出其路径。已经确认的还原若被异常中断，下次打开库时会自动继续。若要防范磁盘损坏，应把备份保存到其他存储设备。
 
@@ -186,6 +188,8 @@ inbox help --lang en
 ```
 
 语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。从 v0.3.0 开始使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。
+
+运行 `inbox info` 可查看当前程序版本、解析后的数据目录、存储状态，以及日期文件、活动灵感、浏览和回收站数量。它会执行与 `doctor` 相同的数据校验，并输出简洁的运行摘要。
 
 发生数据损坏时先停止写入、备份，然后运行 `inbox doctor` 检查正文、浏览日志和回收站。它不会猜测如何修复损坏内容。手动编辑 Markdown 时应保留元数据与记录标记，避免并发写入。详见[存储与恢复说明](docs/FORMAT.md)。
 

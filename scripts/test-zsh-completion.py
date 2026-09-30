@@ -63,6 +63,7 @@ bindkey '^G' _test_reset
         read_until(master, b"READY> ")
         cases = [
             ("he", ["help"], ["--help"]),
+            ("inf", ["info"], ["--help"]),
             ("restore ", trash, active + ["--dir"]),
             ("show ", active, trash + ["--no-track", "--dir"]),
             ("edit ", active, ["--clear-tags"]),
@@ -70,6 +71,7 @@ bindkey '^G' _test_reset
             ("show -", ["--no-track", "--dir"], ["--help", "--tag", "--yes", "--limit"]),
             ("restore -", ["--from", "--dir"], ["--help", "--no-track", "--tag"]),
             ("backup -", ["--dir"], ["--from", "--yes", "--tag"]),
+            ("backup ", ["verify"], ["--from", "--yes"]),
             ("list -t ", ["work"], ["--help"]),
             ("delete today -", ["--yes"], ["--tag", "--no-track"]),
             ("trash -", ["--dir"], ["--help", "--yes", "--tag"]),

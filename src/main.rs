@@ -52,11 +52,6 @@ fn run(cli: Cli) -> Result<()> {
             out.flush()?;
             return Ok(());
         }
-        Command::Completions { shell } => {
-            write!(out, "{shell}")?;
-            out.flush()?;
-            return Ok(());
-        }
         _ => (),
     }
     let root = cli::data_dir(cli.dir)?;
@@ -266,6 +261,42 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
+        Command::DeleteTags { prefix, tags } => {
+            if !root.try_exists()? {
+                return Err(i18n::text("inbox 为空", "The inbox is empty").into());
+            }
+            let store = Store::open(&root, true)?.unwrap();
+            let original = query::find(&store, &prefix)?;
+            let kept = original
+                .meta
+                .tags
+                .iter()
+                .filter(|tag| !tags.contains(tag))
+                .cloned()
+                .collect::<Vec<_>>();
+            let removed = original.meta.tags.len() - kept.len();
+            if removed == 0 {
+                writeln!(
+                    out,
+                    "{}",
+                    inbox::message!(
+                        "没有匹配的标签，记录未改变",
+                        "No matching tags; the note was unchanged"
+                    )
+                )?;
+            } else {
+                let note = editing::edit(&store, &prefix, None, Some(kept))?;
+                writeln!(
+                    out,
+                    "{}",
+                    inbox::message!(
+                        "已从 {} 删除 {removed} 个标签",
+                        "Removed {removed} tags from {}",
+                        note.short_id()
+                    )
+                )?;
+            }
+        }
         Command::Trash { empty, yes } => {
             if empty {
                 let ids = match Store::open(&root, false)? {
@@ -341,7 +372,7 @@ fn run(cli: Cli) -> Result<()> {
                 )
             )?;
         }
-        Command::Help | Command::Version | Command::Completions { .. } => unreachable!(),
+        Command::Help | Command::Version => unreachable!(),
     }
     out.flush()?;
     Ok(())

@@ -24,12 +24,24 @@ Copy-Item -LiteralPath $Binary -Destination $InstalledBinary -Force
 
 if ($Shell -eq "powershell") {
     $CompletionPath = Join-Path $BinDir "inbox-completion.ps1"
-    & $InstalledBinary completions powershell | Set-Content -Encoding utf8 $CompletionPath
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "completion.powershell") -Destination $CompletionPath -Force
     Write-Output "Installed PowerShell completion to $CompletionPath"
+
+    $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $UserEntries = @($UserPath -split [IO.Path]::PathSeparator | Where-Object { $_ })
+    if ($BinDir -notin $UserEntries) {
+        [Environment]::SetEnvironmentVariable("Path", (($UserEntries + $BinDir) -join [IO.Path]::PathSeparator), "User")
+        Write-Output "Added $BinDir to the user PATH. Open a new PowerShell session to use it."
+    }
+    $ProfilePath = $PROFILE
+    $ProfileDir = Split-Path -Parent $ProfilePath
+    New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
+    $EscapedCompletion = $CompletionPath.Replace("'", "''")
+    $ProfileLine = ". '$EscapedCompletion'"
+    if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf) -or -not (Select-String -LiteralPath $ProfilePath -SimpleMatch -Pattern $ProfileLine -Quiet)) {
+        Add-Content -LiteralPath $ProfilePath -Value $ProfileLine
+        Write-Output "Updated PowerShell profile $ProfilePath"
+    }
 }
 
 Write-Output "Installed inbox to $InstalledBinary"
-$PathEntries = $env:PATH -split [IO.Path]::PathSeparator
-if ($BinDir -notin $PathEntries) {
-    Write-Output "Add $BinDir to PATH before using inbox."
-}

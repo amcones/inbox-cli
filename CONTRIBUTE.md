@@ -4,7 +4,17 @@
 
 ## Workflow
 
-Develop on `develop` and open a pull request targeting `main`, the repository's actual default branch. Inspect the working tree first, preserve unrelated changes, and incorporate the current `origin/main` before starting new work.
+`develop` integrates work for the next version; `main` is the stable release branch and the repository's default branch. Inspect the working tree first and preserve unrelated changes. Start topic branches from the current `origin/develop`.
+
+| PR target | Source | Merge method |
+|---|---|---|
+| `develop` | `feat/*`, `fix/*`, `docs/*`, `refactor/*`, `chore/*`, `ci/*`, `test/*`, `perf/*`, `build/*`, `revert/*` (including forks) | Squash for ordinary changes |
+| `main` | This repository's `develop` only | Merge commit |
+| `develop` | This repository's `main`, or a topic branch merging `main` into `develop` | Merge commit for history synchronization |
+
+After each release merge, synchronize `main` back into `develop` before the next release PR. A direct `main` → `develop` PR is suitable when it can pass the required up-to-date check. If GitHub reports it behind, create a `chore/*` branch from the latest `develop`, merge `origin/main` into that branch, and open a PR to `develop`. Resolve conflicts there and merge the synchronization PR with **Create a merge commit**. Squash or rebase would discard the ancestry being restored. Do not reset or force-push either long-lived branch.
+
+Both branch rulesets require a PR, resolved conversations, and the existing `CI gate` with the up-to-date requirement. Both block deletion and force pushes, have no bypass actors, and currently require zero approvals for solo maintenance. `main` permits only merge commits; `develop` permits squash and merge commits, with merge reserved for synchronization. Neither requires linear history. Rulesets select methods by target branch, so maintainers must select squash for ordinary topic PRs and merge for synchronization PRs.
 
 **The maintainer merges manually.** Stop after submitting the PR and reporting its checks. Do not merge, enable auto-merge, bypass reviews, or change branch protection. Do not create tags or publish releases without an explicit release request. Do not force-push shared history without authorization.
 
@@ -61,7 +71,7 @@ The benchmark creates disposable libraries and includes process launch, operatio
 
 ## CI and releases
 
-PRs targeting `main` or `develop` run a source-branch policy, formatting, Clippy, tests, release builds, and script checks on macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64. A separate `Rust 1.89` job checks the MSRV. A PR targeting `main` must have `develop` as its head branch; feature branches target `develop`. The platform jobs remain parallel for coverage, but the repository rulesets require only the final `CI gate` check; it fails unless the source policy, MSRV, and every platform job succeed. The PR workflow builds binaries but does not upload PR build artifacts.
+PRs targeting `main` or `develop` run a source-branch policy, formatting, Clippy, tests, release builds, and script checks on macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64. A separate `Rust 1.89` job checks the MSRV. A PR targeting `main` must come from this repository's `develop`, not a fork with a same-named branch. Topic branches target `develop`; this repository's `main` is also allowed there for release synchronization. The policy reruns when a PR is retargeted. The platform jobs remain parallel for coverage, but the repository rulesets require only the final `CI gate` check; it fails unless the source policy, MSRV, and every platform job succeed. The PR workflow builds binaries but does not upload PR build artifacts.
 
 After the maintainer merges release preparation, an explicitly authorized `vMAJOR.MINOR.PATCH` tag triggers the release workflow. It verifies the Cargo version, changelog entry, and membership in `main`, then builds five native archives with SHA-256 files. Publication creates a draft, uploads all ten assets, then makes the release public. Read-only permissions are the default; only publication receives contents write access.
 

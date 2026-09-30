@@ -67,6 +67,7 @@ fi
 
 mkdir -p "$bin_dir"
 install -m 755 "$binary" "$bin_dir/inbox"
+install -m 755 "$script_dir/update.sh" "$bin_dir/inbox-update"
 
 completion_path=""
 case "$shell_name" in
@@ -116,6 +117,7 @@ if [[ "$shell_name" != none ]]; then
 fi
 
 printf 'Installed inbox to %s\n' "$bin_dir/inbox"
+printf 'Installed updater to %s\n' "$bin_dir/inbox-update"
 if [[ -n "$completion_path" ]]; then
     printf 'Installed %s completion to %s\n' "$shell_name" "$completion_path"
 fi

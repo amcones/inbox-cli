@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.4.3 — 2026-09-30
+
+- Replace the `-h` / `--help` flags with the `inbox help` command; `delete range -h` remains the hour-range option.
+- Add verified update scripts for macOS, Linux, and Windows that replace the installed binary and refresh existing shell completion files.
+- Install the updater beside the binary and include updater and completion scripts in release archives.
+
 ## 0.4.2 — 2026-09-30
 
 - Confirm bulk deletion and permanent trash emptying with one `y` keypress; any other key cancels.

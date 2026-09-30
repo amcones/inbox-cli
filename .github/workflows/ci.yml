@@ -50,13 +50,35 @@ jobs:
               ;;
           esac
 
+  quality:
+    name: Rust quality
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Run tests
+        run: cargo test --locked
+
   msrv:
     name: Rust 1.89
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@1.89.0
-      - run: cargo check --all-targets --locked
+
+      - name: Check MSRV
+        run: cargo check --all-targets --locked
 
   platform:
     name: ${{ matrix.name }}
@@ -66,38 +88,50 @@ jobs:
         include:
           - name: macOS ARM64
             os: macos-14
+
           - name: macOS x86_64
             os: macos-15-intel
+
           - name: Linux ARM64
             os: ubuntu-24.04-arm
+
           - name: Linux x86_64
             os: ubuntu-24.04
+
           - name: Windows x86_64
             os: windows-2025
+
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
-      - run: cargo build --release --locked
-      - name: Verify build and install scripts
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Verify Unix build and install scripts
         if: runner.os != 'Windows'
         shell: bash
         run: |
           bash -n scripts/build.sh scripts/install.sh
           scripts/build.sh
-          scripts/install.sh --no-build --shell none --bin-dir "$RUNNER_TEMP/inbox-bin"
+          scripts/install.sh \
+            --no-build \
+            --shell none \
+            --bin-dir "$RUNNER_TEMP/inbox-bin"
           "$RUNNER_TEMP/inbox-bin/inbox" --version
+
       - name: Verify Windows build and install scripts
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ./scripts/build.ps1
-          ./scripts/install.ps1 -NoBuild -Shell none -BinDir "$env:RUNNER_TEMP\inbox-bin"
+          ./scripts/install.ps1 `
+            -NoBuild `
+            -Shell none `
+            -BinDir "$env:RUNNER_TEMP\inbox-bin"
           & "$env:RUNNER_TEMP\inbox-bin\inbox.exe" --version
 
   gate:
@@ -105,16 +139,27 @@ jobs:
     if: ${{ always() }}
     needs:
       - source-branch
+      - quality
       - msrv
       - platform
+
     runs-on: ubuntu-24.04
+
     steps:
-      - name: Require all platform checks
-        if: ${{ needs.source-branch.result != 'success' || needs.msrv.result != 'success' || needs.platform.result != 'success' }}
+      - name: Require all checks
+        if: >-
+          ${{
+            needs.source-branch.result != 'success' ||
+            needs.quality.result != 'success' ||
+            needs.msrv.result != 'success' ||
+            needs.platform.result != 'success'
+          }}
         run: |
           echo "Source policy result: ${{ needs.source-branch.result }}"
-          echo "MSRV result: ${{ needs.msrv.result }}"
-          echo "Platform result: ${{ needs.platform.result }}"
+          echo "Quality result:       ${{ needs.quality.result }}"
+          echo "MSRV result:          ${{ needs.msrv.result }}"
+          echo "Platform result:      ${{ needs.platform.result }}"
           exit 1
+
       - name: Checks passed
-        run: echo "All required Rust, platform, and script checks passed."
+        run: echo "All required source, quality, MSRV, platform, and script checks passed."

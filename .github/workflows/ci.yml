@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
 
 permissions:
   contents: read
@@ -17,7 +18,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.89.0
       - run: cargo check --all-targets --locked
 
-  build-and-test:
+  platform:
     name: ${{ matrix.name }}
     strategy:
       fail-fast: false
@@ -58,3 +59,20 @@ jobs:
           ./scripts/build.ps1
           ./scripts/install.ps1 -NoBuild -Shell none -BinDir "$env:RUNNER_TEMP\inbox-bin"
           & "$env:RUNNER_TEMP\inbox-bin\inbox.exe" --version
+
+  gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs:
+      - msrv
+      - platform
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all platform checks
+        if: ${{ needs.msrv.result != 'success' || needs.platform.result != 'success' }}
+        run: |
+          echo "MSRV result: ${{ needs.msrv.result }}"
+          echo "Platform result: ${{ needs.platform.result }}"
+          exit 1
+      - name: Checks passed
+        run: echo "All required Rust, platform, and script checks passed."

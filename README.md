@@ -53,7 +53,7 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox` and writes `inbox-completion.ps1` beside the executable. Both installers report when their binary directory still needs to be added to `PATH`. To install a published source revision directly with Cargo, use `cargo install --git https://github.com/amcones/inbox-cli --tag v0.4.0 --locked`.
+The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox` and writes `inbox-completion.ps1` beside the executable. Both installers report when their binary directory still needs to be added to `PATH`. To install a published source revision directly with Cargo, use `cargo install --git ssh://git@github.com/amcones/inbox-cli.git --locked`.
 
 ## Capture, find, and refine
 

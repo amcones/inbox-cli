@@ -53,7 +53,7 @@ Set-Location inbox-cli
 .\scripts\install.ps1
 ```
 
-PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，并在同一目录生成 `inbox-completion.ps1`。如果安装目录尚未加入 `PATH`，脚本会提示。也可使用 `cargo install --git https://github.com/amcones/inbox-cli --tag v0.4.0 --locked` 直接安装已发布的源码版本。
+PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，并在同一目录生成 `inbox-completion.ps1`。如果安装目录尚未加入 `PATH`，脚本会提示。也可使用 `cargo install --git ssh://git@github.com/amcones/inbox-cli.git --locked` 直接安装已发布的源码版本。
 
 ## 记录、查找和完善
 

@@ -1159,14 +1159,14 @@ fn delete_today_requires_confirmation_and_preserves_other_days() {
         inbox.ok(&["show", id]);
     }
 
-    for answer in ["no\n", "\n", "YES PLEASE\n"] {
+    for answer in ["n", "", "Y"] {
         let out = inbox.run_input(&["delete", "today"], answer);
         assert!(out.status.success());
         assert!(String::from_utf8_lossy(&out.stdout).contains("已取消"));
         assert!(String::from_utf8_lossy(&out.stderr).contains("2 条灵感"));
         assert_eq!(inbox.ok(&["list"]).lines().count(), 3);
     }
-    let out = inbox.run_input(&["delete", "today"], "确认\n");
+    let out = inbox.run_input(&["delete", "today"], "y");
     assert!(
         out.status.success(),
         "{}",
@@ -1192,7 +1192,7 @@ fn delete_range_uses_a_left_closed_hour_window_and_preserves_other_notes() {
         &[
             "delete", "range", "-y", "26", "-m", "9", "-d", "29", "-h", "8", "12", "--lang", "en",
         ],
-        "no\n",
+        "n",
     );
     assert!(cancelled.status.success());
     assert!(String::from_utf8_lossy(&cancelled.stderr).contains("2 notes"));
@@ -1247,7 +1247,7 @@ fn delete_all_confirmation_and_yes_flag_work_in_both_languages() {
     let inbox = Inbox::new();
     inbox.add_at("old", &[], "2026-09-28T10:00:00+08:00[Asia/Shanghai]");
     inbox.ok(&["add", "new"]);
-    let cancelled = inbox.run_input(&["delete", "all", "--lang", "en"], "n\n");
+    let cancelled = inbox.run_input(&["delete", "all", "--lang", "en"], "n");
     assert!(cancelled.status.success());
     assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Move 2 notes"));
     assert!(String::from_utf8_lossy(&cancelled.stdout).contains("Cancelled"));
@@ -1379,12 +1379,17 @@ fn trash_empty_requires_confirmation_and_yes_permanently_removes_entries() {
     let second = inbox.ok(&["add", "second"]);
     inbox.ok(&["delete", first.trim()]);
     inbox.ok(&["delete", second.trim()]);
-    let cancelled = inbox.run_input(&["trash", "empty", "--lang", "en"], "no\n");
+    let cancelled = inbox.run_input(&["trash", "empty", "--lang", "en"], "n");
     assert!(cancelled.status.success());
     assert!(String::from_utf8_lossy(&cancelled.stderr).contains("Permanently delete 2 notes"));
     assert_eq!(inbox.ok(&["trash"]).lines().count(), 2);
     assert_eq!(
-        inbox.ok(&["trash", "empty", "--yes", "--lang", "en"]),
+        String::from_utf8(
+            inbox
+                .run_input(&["trash", "empty", "--lang", "en"], "y")
+                .stdout
+        )
+        .unwrap(),
         "Permanently deleted 2 notes\n"
     );
     assert!(inbox.ok(&["trash"]).is_empty());

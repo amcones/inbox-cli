@@ -12,6 +12,8 @@ use std::{
     process::ExitCode,
 };
 
+mod confirmation;
+
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let cli = match i18n::configure(&args).and_then(|_| cli::parse(args)) {
@@ -489,32 +491,26 @@ fn confirm_delete(label: &str, count: usize) -> Result<bool> {
     eprint!(
         "{}",
         inbox::message!(
-            "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。输入 yes 确认：",
-            "Move {count} notes from {label} to trash and clear their view history. Type yes to confirm: "
+            "将{label}的 {count} 条灵感移入回收站，并清除其浏览记录。按 y 确认，其他键取消：",
+            "Move {count} notes from {label} to trash and clear their view history. Press y to confirm; any other key cancels: "
         )
     );
     io::stderr().flush()?;
-    let mut answer = String::new();
-    io::stdin().read_line(&mut answer)?;
-    Ok(
-        matches!(answer.trim().to_ascii_lowercase().as_str(), "yes" | "y")
-            || matches!(answer.trim(), "是" | "确认"),
-    )
+    let confirmed = confirmation::read_key()?;
+    eprintln!();
+    Ok(confirmed)
 }
 
 fn confirm_empty_trash(count: usize) -> Result<bool> {
     eprint!(
         "{}",
         inbox::message!(
-            "将永久删除回收站中的 {count} 条灵感。输入 yes 确认：",
-            "Permanently delete {count} notes from trash. Type yes to confirm: "
+            "将永久删除回收站中的 {count} 条灵感。按 y 确认，其他键取消：",
+            "Permanently delete {count} notes from trash. Press y to confirm; any other key cancels: "
         )
     );
     io::stderr().flush()?;
-    let mut answer = String::new();
-    io::stdin().read_line(&mut answer)?;
-    Ok(
-        matches!(answer.trim().to_ascii_lowercase().as_str(), "yes" | "y")
-            || matches!(answer.trim(), "是" | "确认"),
-    )
+    let confirmed = confirmation::read_key()?;
+    eprintln!();
+    Ok(confirmed)
 }

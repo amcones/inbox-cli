@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.4.0 — 2026-09-30
+
+- Normalize ASCII letters in tags to lowercase and match tag filters without regard to English letter case, while continuing to read older mixed-case tags.
+- Add `inbox review` with an optional result limit, five candidates by default, priority ordering, and short recency/view-frequency reasons.
+- Add generated command completion for Bash, Zsh, Fish, and PowerShell.
+- Add release build and user-local installation scripts for Unix shells and PowerShell, including optional completion installation.
+
 ## 0.3.0 — 2026-09-30
 
 - Add case-insensitive full-text body search with tag filters, time/priority sorting, and result limits.

@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod completion;
 pub mod deletion;
 pub mod editing;
 pub mod i18n;

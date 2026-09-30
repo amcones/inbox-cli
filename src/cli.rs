@@ -11,6 +11,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox edit <ID前缀> -t 标签...    替换标签（--clear-tags 清空标签）
   inbox [list] [-t 标签]...         最近的灵感，默认 20 条
   inbox list --sort priority       按隐藏优先级排序
+  inbox review [-n 数量]           回顾优先候选，默认 5 条
   inbox search <关键词> [-t 标签]... 搜索完整正文
   inbox show <ID前缀> [--no-track]  查看完整内容；默认计一次浏览
   inbox delete <ID前缀>            将灵感移入回收站
@@ -23,9 +24,10 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
+  inbox completions <shell>       生成 bash、zsh、fish 或 powershell 补全脚本
 
 选项:
-  -t, --tag <标签>       添加或筛选标签，可重复，区分大小写
+  -t, --tag <标签>       添加或筛选标签，可重复；英文统一为小写
       --clear-tags      编辑时清空全部标签
   -n, --limit <数量>     列表数量，必须大于 0
       --any             多标签匹配任意一个（默认全部匹配）
@@ -37,7 +39,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   -h, --help            显示帮助
   -V, --version         显示版本
 
-列表和搜索不计浏览次数；搜索不区分大小写；正文里的 #文字不会自动成为标签。
+列表、搜索和回顾不计浏览次数；搜索不区分大小写；正文里的 #文字不会自动成为标签。
 ";
 
 pub const HELP_EN: &str = "inbox — Capture ideas in local Markdown files
@@ -48,6 +50,7 @@ Usage:
   inbox edit <ID-prefix> -t tag...  Replace tags (--clear-tags removes all)
   inbox [list] [-t tag]...         Recent ideas, default 20
   inbox list --sort priority       Sort by hidden priority
+  inbox review [-n count]          Review priority candidates, default 5
   inbox search <query> [-t tag]... Search complete note bodies
   inbox show <ID-prefix> [--no-track] Show full content; counts one view
   inbox delete <ID-prefix>         Move an idea to trash
@@ -60,9 +63,10 @@ Usage:
   inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
+  inbox completions <shell>       Generate bash, zsh, fish, or powershell completion
 
 Options:
-  -t, --tag <tag>         Add/filter a tag; repeatable, case-sensitive
+  -t, --tag <tag>         Add/filter a tag; repeatable; ASCII is lowercased
       --clear-tags       Remove all tags while editing
   -n, --limit <count>     List limit, must be positive
       --any              Match any supplied tag (default: all)
@@ -74,7 +78,7 @@ Options:
   -h, --help             Show help
   -V, --version          Show version
 
-Lists and searches do not count as views. Search is case-insensitive. #words in content do not become tags.
+Lists, searches, and reviews do not count as views. Search is case-insensitive. #words in content do not become tags.
 ";
 
 pub fn help() -> &'static str {
@@ -111,6 +115,9 @@ pub enum Command {
         sort: Sort,
         limit: usize,
     },
+    Review {
+        limit: usize,
+    },
     Show {
         prefix: String,
         track: bool,
@@ -128,6 +135,9 @@ pub enum Command {
     },
     Tags,
     Doctor,
+    Completions {
+        shell: crate::completion::Shell,
+    },
     Help,
     Version,
 }
@@ -447,6 +457,16 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 limit: limit.unwrap_or(20),
             }
         }
+        "review" if positional.len() == 1 => {
+            reject(
+                any || sort.is_some() || no_track || yes || tags_seen || clear_tags,
+                "review 仅接受 --limit",
+                "review only accepts --limit",
+            )?;
+            Command::Review {
+                limit: limit.unwrap_or(5),
+            }
+        }
         "show" | "delete"
             if positional.len() == 2
                 && !(positional[0] == "delete" && positional[1] == "range") =>
@@ -562,6 +582,16 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 Command::Tags
             } else {
                 Command::Doctor
+            }
+        }
+        "completions" if positional.len() == 2 => {
+            reject(
+                list_options || no_track || yes || tags_seen || clear_tags,
+                "completions 不接受其它选项",
+                "completions does not accept other options",
+            )?;
+            Command::Completions {
+                shell: positional[1].parse()?,
             }
         }
         _ => {

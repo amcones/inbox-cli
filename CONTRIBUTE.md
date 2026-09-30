@@ -21,6 +21,8 @@ cargo test --locked
 cargo +1.89.0 check --all-targets --locked
 ```
 
+The supported local wrappers are `scripts/build.sh` and `scripts/install.sh` on macOS/Linux, with `scripts/build.ps1` and `scripts/install.ps1` on Windows. CI exercises both the build and no-rebuild installation paths. Keep their builds equivalent to `cargo build --release --locked`.
+
 The last command requires the 1.89.0 toolchain; CI also runs it. Use temporary data directories for manual checks, never a user's real inbox. Documentation-only work needs link and example verification, not extra behavior tests. Runtime changes need relevant regression tests and the Rust checks above.
 
 ## Code and data contracts

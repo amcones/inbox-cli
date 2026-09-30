@@ -163,7 +163,7 @@ fn add_show_and_tags_are_persisted_and_lists_do_not_count_views() {
     ]);
     assert_eq!(id.trim().len(), 8);
     assert!(inbox.ok(&[]).contains("记住这个想法"));
-    assert_eq!(inbox.ok(&["tags"]), "Rust\t1\n产品\t1\n");
+    assert_eq!(inbox.ok(&["tags"]), "rust\t1\n产品\t1\n");
     let files = inbox.files();
     assert_eq!(files.len(), 1);
     let before = fs::read(&files[0]).unwrap();
@@ -181,12 +181,12 @@ fn add_show_and_tags_are_persisted_and_lists_do_not_count_views() {
 }
 
 #[test]
-fn tags_support_intersection_union_and_exact_case_sensitive_matching() {
+fn tags_are_ascii_case_insensitive_and_stored_lowercase() {
     let inbox = Inbox::new();
-    inbox.ok(&["add", "one", "-t", "a", "-t", "b"]);
+    inbox.ok(&["add", "one", "-t", "A", "-t", "b", "-t", "a"]);
     inbox.ok(&["add", "two", "-t", "a"]);
     inbox.ok(&["add", "three", "-t", "B"]);
-    let both = inbox.ok(&["list", "-t", "a", "-t", "b"]);
+    let both = inbox.ok(&["list", "-t", "A", "-t", "B"]);
     assert_eq!(both.lines().count(), 1);
     assert!(both.contains("one"));
     assert_eq!(
@@ -196,7 +196,96 @@ fn tags_support_intersection_union_and_exact_case_sensitive_matching() {
             .count(),
         2
     );
+    assert_eq!(inbox.ok(&["tags"]), "a\t2\nb\t2\n");
+    assert!(
+        String::from_utf8(fs::read(&inbox.files()[0]).unwrap())
+            .unwrap()
+            .contains(r#""tags":["a","b"]"#)
+    );
     assert!(inbox.ok(&["list", "-t", "missing"]).is_empty());
+}
+
+#[test]
+fn legacy_mixed_case_tags_are_read_case_insensitively() {
+    let inbox = Inbox::new();
+    inbox.add_at(
+        "legacy",
+        &["rust"],
+        "2026-09-29T09:00:00+08:00[Asia/Shanghai]",
+    );
+    let path = &inbox.files()[0];
+    let old = fs::read_to_string(path)
+        .unwrap()
+        .replace(r#""tags":["rust"]"#, r#""tags":["Rust","RUST"]"#);
+    fs::write(path, old).unwrap();
+
+    assert_eq!(inbox.ok(&["tags"]), "rust\t1\n");
+    assert!(inbox.ok(&["list", "-t", "RUST"]).contains("legacy"));
+    assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
+}
+
+#[test]
+fn legacy_mixed_case_tags_in_trash_can_be_listed_and_restored() {
+    let inbox = Inbox::new();
+    let id = inbox.ok(&["add", "legacy trash", "-t", "rust"]);
+    inbox.ok(&["delete", id.trim()]);
+    let path = fs::read_dir(inbox.0.join(".inbox/trash"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let old = fs::read_to_string(&path)
+        .unwrap()
+        .replace(r#""tags": ["rust"]"#, r#""tags": ["Rust","RUST"]"#);
+    fs::write(&path, old).unwrap();
+
+    assert!(inbox.ok(&["trash"]).contains("#rust"));
+    inbox.ok(&["restore", id.trim()]);
+    assert!(
+        inbox
+            .ok(&["show", id.trim(), "--no-track"])
+            .contains("#rust")
+    );
+}
+
+#[test]
+fn review_defaults_to_five_explained_candidates_and_honors_limit() {
+    let inbox = Inbox::new();
+    let mut ids = Vec::new();
+    for i in 0..6 {
+        ids.push(inbox.ok(&["add", &format!("idea {i}")]));
+    }
+    inbox.ok(&["show", ids[0].trim()]);
+    inbox.ok(&["show", ids[0].trim()]);
+
+    let default = inbox.ok(&["review"]);
+    assert_eq!(default.matches("原因：").count(), 5);
+    let one = inbox.ok(&["review", "-n", "1"]);
+    assert!(one.contains("idea 0"));
+    assert!(one.contains("近期"));
+    assert!(one.contains("常看（2 次）"));
+    assert!(inbox.ok(&["doctor"]).contains("2 次浏览"));
+
+    for args in [
+        &["review", "-n", "0"][..],
+        &["review", "--sort", "time"][..],
+        &["review", "-t", "idea"][..],
+    ] {
+        assert_eq!(inbox.run(args).status.code(), Some(2));
+    }
+}
+
+#[test]
+fn completion_scripts_cover_supported_shells_without_creating_data() {
+    let inbox = Inbox::new();
+    for shell in ["bash", "zsh", "fish", "powershell", "pwsh"] {
+        let script = inbox.ok(&["completions", shell]);
+        assert!(script.contains("review"));
+        assert!(script.contains("delete"));
+    }
+    assert_eq!(inbox.run(&["completions", "cmd"]).status.code(), Some(2));
+    assert!(!inbox.0.exists());
 }
 
 #[test]

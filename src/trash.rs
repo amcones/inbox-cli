@@ -1,7 +1,7 @@
 use crate::{
     Result,
     i18n::text,
-    model::{Metadata, Note, normalize_content, validate_meta},
+    model::{Metadata, Note, normalize_content, normalize_tags, validate_meta},
     storage::{Store, ensure_dir, sync_dir},
 };
 use serde::{Deserialize, Serialize};
@@ -39,7 +39,7 @@ impl Entry {
         }
     }
 
-    pub fn validate(self) -> Result<(Self, Note)> {
+    pub fn validate(mut self) -> Result<(Self, Note)> {
         if self.version != 1 {
             return Err(text("不支持的回收站格式版本", "Unsupported trash format version").into());
         }
@@ -47,6 +47,8 @@ impl Entry {
         if deleted.to_string() != self.deleted_at {
             return Err(text("回收站删除时间格式无效", "Invalid trash deletion timestamp").into());
         }
+        // Trash written before v0.4 may contain mixed-case ASCII tags.
+        self.note.meta.tags = normalize_tags(self.note.meta.tags)?;
         let timestamp = validate_meta(&self.note.meta)?;
         let content = normalize_content(self.note.content.clone())?;
         let note = Note {

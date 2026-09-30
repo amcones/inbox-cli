@@ -110,8 +110,9 @@ pub fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>> {
             )
             .into());
         }
-        if !out.iter().any(|t| t == tag) {
-            out.push(tag.to_owned());
+        let tag = tag.to_ascii_lowercase();
+        if !out.contains(&tag) {
+            out.push(tag);
         }
     }
     if out.len() > MAX_TAGS {

@@ -33,6 +33,10 @@ _inbox() {
     return
   fi
   command=$words[2]
+  # _arguments counts positions from the command name. Remove the subcommand
+  # so its first positional specification applies to the word after it.
+  words=($words[1] $words[3,-1])
+  (( CURRENT-- ))
   case $command in
     add) _arguments $common '*'{-t,--tag}'[add a tag]:tag:_inbox_tags' '1:content:' ;;
     edit) _arguments $common '*'{-t,--tag}'[replace tags]:tag:_inbox_tags' '--clear-tags[remove all tags]' '1:idea ID:_inbox_active' '2:new content:' ;;
@@ -43,7 +47,7 @@ _inbox() {
     restore) _arguments $common '1:trashed idea ID:_inbox_trash' ;;
     trash) _arguments $common '--yes[skip confirmation]' '1:action:(empty)' ;;
     delete)
-      target=$words[3]
+      target=$words[2]
       if [[ $target == range ]]; then
         _arguments $range_common '--yes[skip confirmation]' '-y[year]:year:' '-m[month]:month:({1..12})' '-d[day]:day:({1..31})' '-h[hour range]:start hour:({0..23}):end hour:({1..24})' '1:target:(range)'
       else

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-09-30
+
+- Add `inbox backup <directory>` for locked, validated snapshots of Markdown notes, view history, and trash.
+- Add confirmed full-library restore with `inbox restore --from <directory>`, automatic pre-restore safety backups, and `--yes` for automation.
+- Make committed restore transactions recoverable after interruption while preserving the active lock file.
+- Complete backup paths and restore options in Bash, Zsh, Fish, and PowerShell.
+
 ## 0.4.3 — 2026-09-30
 
 - Replace the `-h` / `--help` flags with the `inbox help` command; `delete range -h` remains the hour-range option.

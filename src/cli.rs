@@ -21,6 +21,8 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   inbox delete all [--yes]         确认后将全部灵感移入回收站
   inbox trash                     查看回收站
   inbox restore <ID前缀>           恢复灵感
+  inbox backup <目录>              创建完整、可校验的备份
+  inbox restore --from <备份目录>  确认后还原完整备份
   inbox trash empty [--yes]        确认后永久清空回收站
   inbox tags                      标签及记录数量
   inbox doctor                    检查全部记录和浏览日志
@@ -33,7 +35,8 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
       --any             多标签匹配任意一个（默认全部匹配）
       --sort <方式>     time（默认）或 priority
       --no-track        show 不增加浏览次数
-  -y, --yes             跳过批量删除确认（range 中 -y 表示年份，请用 --yes）
+      --from <目录>      restore 使用的完整备份目录
+  -y, --yes             跳过删除或完整还原确认（range 中 -y 表示年份）
       --dir <目录>      数据目录（优先于 INBOX_DIR，默认 ~/inbox）
       --lang <语言>     auto（默认）、zh（中文）或 en（英文）
   -V, --version         显示版本
@@ -59,6 +62,8 @@ Usage:
   inbox delete all [--yes]         Move all ideas to trash after confirmation
   inbox trash                     List trashed ideas
   inbox restore <ID-prefix>        Restore an idea
+  inbox backup <directory>         Create a complete, verified backup
+  inbox restore --from <backup>    Restore a complete backup after confirmation
   inbox trash empty [--yes]        Permanently empty trash after confirmation
   inbox tags                      Tags and note counts
   inbox doctor                    Check all notes and the view log
@@ -71,7 +76,8 @@ Options:
       --any              Match any supplied tag (default: all)
       --sort <order>     time (default) or priority
       --no-track         Do not count this show as a view
-  -y, --yes              Skip confirmation (-y is year in range; use --yes)
+      --from <directory> Complete backup used by restore
+  -y, --yes              Skip deletion or full-restore confirmation
       --dir <directory>  Overrides INBOX_DIR; default ~/inbox
       --lang <language>  auto (default), zh (Chinese), or en (English)
   -V, --version          Show version
@@ -135,6 +141,13 @@ pub enum Command {
     Restore {
         prefix: String,
     },
+    Backup {
+        destination: PathBuf,
+    },
+    RestoreBackup {
+        source: PathBuf,
+        yes: bool,
+    },
     Tags,
     Doctor,
     Complete {
@@ -187,6 +200,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     let mut no_track = false;
     let mut yes = false;
     let mut clear_tags = false;
+    let mut from = None;
     let mut range_year = None;
     let mut range_month = None;
     let mut range_day = None;
@@ -309,6 +323,24 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
                 tags.push(parser.value()?.string()?);
             }
             Long("clear-tags") => clear_tags = true,
+            Long("from") => {
+                if from.is_some() {
+                    return Err(crate::i18n::text(
+                        "--from 只能指定一次",
+                        "--from may only be specified once",
+                    )
+                    .into());
+                }
+                let path = parser.value()?;
+                if path.is_empty() {
+                    return Err(crate::i18n::text(
+                        "备份目录不能为空",
+                        "The backup directory must not be empty",
+                    )
+                    .into());
+                }
+                from = Some(PathBuf::from(path));
+            }
             Long("any") => any = true,
             Long("no-track") => no_track = true,
             Short('y') | Long("yes") => yes = true,
@@ -356,6 +388,14 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
     }
     let tags = normalize_tags(tags)?;
     let list_options = any || sort.is_some() || limit.is_some();
+    let unrelated = list_options || no_track || tags_seen || clear_tags;
+    if from.is_some() && positional.first().map(String::as_str) != Some("restore") {
+        return Err(crate::i18n::text(
+            "--from 仅用于 restore",
+            "--from is only valid with restore",
+        )
+        .into());
+    }
     let command = match positional.first().map(String::as_str).unwrap_or("list") {
         "add" if positional.len() == 2 => {
             reject(
@@ -586,7 +626,28 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             }
             Command::Trash { empty, yes }
         }
-        "restore" if positional.len() == 2 => {
+        "backup" if positional.len() == 2 => {
+            reject(
+                unrelated || yes || from.is_some(),
+                "backup 不接受其它选项",
+                "backup does not accept these options",
+            )?;
+            Command::Backup {
+                destination: PathBuf::from(positional.pop().unwrap()),
+            }
+        }
+        "restore" if positional.len() == 1 && from.is_some() => {
+            reject(
+                unrelated,
+                "完整还原仅接受 --from 和 --yes",
+                "Full restore only accepts --from and --yes",
+            )?;
+            Command::RestoreBackup {
+                source: from.take().unwrap(),
+                yes,
+            }
+        }
+        "restore" if positional.len() == 2 && from.is_none() => {
             reject(
                 list_options || no_track || yes || tags_seen || clear_tags,
                 "restore 不接受其它选项",
@@ -597,7 +658,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
             Command::Restore { prefix }
         }
         "tags" | "doctor" if positional.len() == 1 => {
-            if list_options || no_track || yes || tags_seen || clear_tags {
+            if list_options || no_track || yes || tags_seen || clear_tags || from.is_some() {
                 return Err(crate::i18n::text(
                     "该子命令不接受列表、标签或浏览选项",
                     "This subcommand does not accept list, tag, or tracking options",
@@ -612,7 +673,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
         }
         "help" if positional.len() == 1 => {
             reject(
-                list_options || no_track || yes || tags_seen || clear_tags,
+                list_options || no_track || yes || tags_seen || clear_tags || from.is_some(),
                 "help 不接受其它选项",
                 "help does not accept these options",
             )?;
@@ -620,7 +681,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Cli> {
         }
         "__complete" if positional.len() == 2 => {
             reject(
-                list_options || no_track || yes || tags_seen || clear_tags,
+                list_options || no_track || yes || tags_seen || clear_tags || from.is_some(),
                 "内部补全命令不接受其它选项",
                 "The internal completion command does not accept options",
             )?;

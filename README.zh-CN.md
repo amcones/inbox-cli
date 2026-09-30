@@ -8,7 +8,7 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 
 - **快速记录**：正文加标签，或通过管道接收多行内容。
 - **方便找回**：全文搜索、标签筛选，按时间或结合近期记录与浏览次数的隐藏优先级排序。
-- **可编辑、可恢复**：修改正文与标签，删除后进入回收站，恢复时保留原始身份。
+- **可编辑、可恢复**：修改正文与标签，误删可从回收站恢复，并能创建经过校验的整库备份。
 - **数据自己掌握**：每天一个可读的 Markdown 文件，macOS、Linux、Windows 均提供单文件程序。
 - **中英文支持**：按系统语言自动选择，也可手动指定。
 
@@ -81,7 +81,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.3 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.0 --locked
 ```
 
 ## 更新
@@ -92,7 +92,7 @@ cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.3 --lo
 
 ```bash
 inbox-update                    # 更新到最新版
-inbox-update --version v0.4.3  # 更新到指定版本
+inbox-update --version v0.5.0  # 更新到指定版本
 ```
 
 如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
@@ -101,7 +101,7 @@ inbox-update --version v0.4.3  # 更新到指定版本
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.4.3
+inbox-update.ps1 -Version v0.5.0
 ```
 
 如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
@@ -162,7 +162,20 @@ inbox trash empty                   # 确认后永久清空
 
 批量删除按下 `y` 键执行，其他任意键或标准输入结束都会立即取消，无需回车。脚本可用 `--yes` 跳过提示。确认期间新增的灵感会保留。删除会清除浏览记录；恢复保留正文、标签、ID 和原创建时间，不恢复历史浏览次数。**清空回收站后无法恢复。**
 
-## 数据、语言与备份
+## 备份与还原
+
+完整备份 Markdown、浏览记录和回收站：
+
+```bash
+inbox backup ~/Backups/inbox-2026-09-30
+inbox restore --from ~/Backups/inbox-2026-09-30
+```
+
+备份时会锁定数据目录，检查全部灵感、浏览记录和回收站，再生成带清单的独立目录。目标目录必须尚不存在，且不能放在数据目录内部。备份仍是可直接读取的本地文件，不会加密。
+
+整库还原会先校验快照，再等待按下 `y`；其他任意键都会取消。自动化脚本可用 `--yes` 跳过确认。覆盖前会在当前数据目录旁自动创建名为 `inbox.before-restore-…` 的安全快照，并输出其路径。已经确认的还原若被异常中断，下次打开库时会自动继续。若要防范磁盘损坏，应把备份保存到其他存储设备。
+
+## 数据与语言
 
 数据默认保存到 `~/inbox/YYYY/MM/YYYY-MM-DD.md`。通过 `--dir` 或 `INBOX_DIR` 更改位置，命令行选项优先。
 
@@ -173,8 +186,6 @@ inbox help --lang en
 ```
 
 语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。从 v0.3.0 开始使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。
-
-**备份整个数据目录，包括 `.inbox`**，其中包含浏览历史和回收站。复制前先停止 inbox 命令。隐藏文件不等于加密；不要再用不支持回收站的旧版本操作同一个库。
 
 发生数据损坏时先停止写入、备份，然后运行 `inbox doctor` 检查正文、浏览日志和回收站。它不会猜测如何修复损坏内容。手动编辑 Markdown 时应保留元数据与记录标记，避免并发写入。详见[存储与恢复说明](docs/FORMAT.md)。
 

@@ -8,7 +8,7 @@ inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped
 
 - **Quick capture:** write a note with tags, or pipe multiline content from another tool.
 - **Easy recall:** search complete note bodies, filter by tags, and sort by recency or a hidden priority that rewards recent and frequently viewed ideas.
-- **Editable and recoverable:** update notes, move them to trash, and restore them with their original identity.
+- **Editable and recoverable:** update notes, use trash for individual mistakes, and create verified full-library backups.
 - **Your files:** readable daily Markdown, local storage, and a single binary for macOS, Linux, and Windows.
 - **Bilingual:** Chinese and English messages, selected from your system language or an explicit setting.
 
@@ -81,7 +81,7 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.4.3 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.0 --locked
 ```
 
 ## Update
@@ -92,7 +92,7 @@ Release and source-script installations include an updater that verifies the arc
 
 ```bash
 inbox-update                    # latest release
-inbox-update --version v0.4.3  # a specific release
+inbox-update --version v0.5.0  # a specific release
 ```
 
 If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
@@ -101,7 +101,7 @@ If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.4.3
+inbox-update.ps1 -Version v0.5.0
 ```
 
 Use `-BinDir` when `inbox.exe` is outside `PATH`. Cargo installations remain managed by Cargo; update those with the corresponding `cargo install` command.
@@ -162,7 +162,20 @@ For `delete range`, omitted year, month, and day default to the current local da
 
 Bulk deletion asks you to press `y`; any other key or EOF cancels immediately. `--yes` skips the prompt for automation. Notes added while you confirm are preserved. Deletion clears view history; restoring brings back the body, tags, ID, and original creation time, but not past views. **Emptying trash is permanent.**
 
-## Data, language, and backup
+## Backup and restore
+
+Create a complete snapshot of the Markdown files, view history, and trash:
+
+```bash
+inbox backup ~/Backups/inbox-2026-09-30
+inbox restore --from ~/Backups/inbox-2026-09-30
+```
+
+The backup command holds the inbox lock, validates all notes, view history, and trash, then writes a self-contained directory with a manifest. The destination must not already exist and cannot be inside the data directory. Backups preserve readable files and are not encrypted.
+
+Full restore validates the snapshot before asking you to press `y`; any other key cancels. `--yes` skips the prompt for automation. Before replacement, inbox automatically creates a sibling snapshot named `inbox.before-restore-…` and reports its path. A committed restore interrupted by a crash continues the next time inbox opens the library. Keep backups on separate storage if you need protection from disk loss.
+
+## Data and language
 
 Notes live in `~/inbox/YYYY/MM/YYYY-MM-DD.md`. Change the location with `--dir` or `INBOX_DIR`; the command-line option takes precedence.
 
@@ -173,8 +186,6 @@ inbox help --lang zh
 ```
 
 Language precedence is `--lang` > `INBOX_LANG` > system language. Choose `auto`, `en`, or `zh`; unsupported system languages fall back to English. Body text and tags are never translated. Since v0.3.0, use `add` instead of the old `-m` capture option. For body text starting with a dash, put options first and use `--`, for example `inbox add -- '--an idea'`.
-
-**Back up the entire data directory, including `.inbox`.** It holds view history and trash. Stop inbox commands before copying a backup. Hidden files are not encrypted. Avoid using older versions that do not support trash on the same library.
 
 If a command reports damaged data, stop writing, make a backup, and run `inbox doctor`. It checks notes, view history, and trash; it does not guess how to repair corrupted content. For manual Markdown edits, preserve metadata and record markers and avoid concurrent writes. See the [storage and recovery guide](docs/FORMAT.md).
 

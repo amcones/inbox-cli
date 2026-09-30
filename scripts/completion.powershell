@@ -1,7 +1,7 @@
 Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $commands = @('add','edit','list','search','review','show','delete','trash','restore','tags','doctor','help')
+    $commands = @('add','edit','list','search','review','show','delete','trash','restore','backup','tags','doctor','help')
     $elements = @($commandAst.CommandElements | ForEach-Object { $_.Value })
     $subcommand = $elements | Where-Object { $_ -in $commands } | Select-Object -First 1
     $previous = if ($elements.Count -ge 2) { $elements[-2] } else { '' }
@@ -25,6 +25,12 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     }
 
     switch ($previous) {
+        '--from' {
+            Get-ChildItem -Directory -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_.FullName, $_.Name, 'ProviderContainer', 'backup directory')
+            }
+            return
+        }
         '--lang' { Complete-Values @('auto','en','zh') 'language'; return }
         '--sort' { Complete-Values @('time','priority') 'sort order'; return }
         { $_ -in @('-n','--limit') } { Complete-Values @('5','10','20','50','100') 'result limit'; return }
@@ -53,9 +59,19 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
     if ($elements.Count -le $subIndex + 2) {
         switch ($subcommand) {
             { $_ -in @('show','edit') } { Complete-Values (Inbox-Values 'active-ids') 'active idea ID'; return }
-            'restore' { Complete-Values (Inbox-Values 'trash-ids') 'trashed idea ID'; return }
+            'restore' {
+                if ($wordToComplete.StartsWith('-')) { Complete-Values @('--from','--dir','--lang') 'restore option' }
+                else { Complete-Values (Inbox-Values 'trash-ids') 'trashed idea ID' }
+                return
+            }
             'delete' { Complete-Values ((Inbox-Values 'active-ids') + @('today','range','all')) 'delete target'; return }
             'trash' { Complete-Values @('empty') 'trash action'; return }
+            'backup' {
+                Get-ChildItem -Directory -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new($_.FullName, $_.Name, 'ProviderContainer', 'backup directory')
+                }
+                return
+            }
         }
     }
 
@@ -66,7 +82,7 @@ Register-ArgumentCompleter -Native -CommandName inbox -ScriptBlock {
         { $_ -in @('list','search') } { @('-t','--tag','--any','--sort','-n','--limit') + $common }
         'review' { @('-n','--limit') + $common }
         'show' { @('--no-track') + $common }
-        'restore' { $common }
+        'restore' { @('--from','--yes') + $common }
         'trash' { @('--yes') + $common }
         'delete' {
             if ($elements -contains 'range') { @('-y','-m','-d','-h','--yes','--dir','--lang') }

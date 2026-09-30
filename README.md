@@ -137,7 +137,7 @@ inbox trash empty                   # Confirm permanent deletion
 
 For `delete range`, omitted year, month, and day default to the current local date; omitted hours default to `0 24`. Two-digit years mean 2000–2099. Matching uses each note's recorded date and hour. In this command, `-y` means year and `-h` means hours: use `--yes` to skip confirmation and `--help` for help.
 
-Bulk deletion asks for `yes`, `y`, `是`, or `确认`; other input or EOF cancels. `--yes` skips the prompt for automation. Notes added while you confirm are preserved. Deletion clears view history; restoring brings back the body, tags, ID, and original creation time, but not past views. **Emptying trash is permanent.**
+Bulk deletion asks you to press `y`; any other key or EOF cancels immediately. `--yes` skips the prompt for automation. Notes added while you confirm are preserved. Deletion clears view history; restoring brings back the body, tags, ID, and original creation time, but not past views. **Emptying trash is permanent.**
 
 ## Data, language, and backup
 

@@ -20,7 +20,7 @@ Both branch rulesets require a PR, resolved conversations, and the existing `CI 
 
 ## Build and check
 
-The project uses Rust edition 2024 and supports Rust 1.89 or newer. Runtime dependencies are limited to `jiff` (time zones), `lexopt` (arguments), `serde` / `serde_json` (metadata), and `uuid` (IDs).
+The project uses Rust edition 2024 and supports Rust 1.89 or newer. Runtime dependencies are limited to `jiff` (time zones), `lexopt` (arguments), `serde` / `serde_json` (metadata), and `uuid` (IDs), plus platform bindings (`libc` on Unix and `windows-sys` on Windows) for immediate single-key confirmation.
 
 ```bash
 cargo build --release --locked

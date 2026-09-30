@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.4.2 — 2026-09-30
+
+- Fix dynamic ID completion for `show`, `delete`, and `restore`, using active notes or trash as appropriate.
+- Complete command-specific options, tag values, sort and language values, paths, date parts, hours, limits, and delete targets across Bash, Zsh, Fish, and PowerShell.
+- Add a stable hidden completion interface so shell scripts no longer parse human-readable list output.
+
 ## 0.4.1 — 2026-09-30
 
 - Remove the `inbox completions` subcommand; installers now deploy dynamic shell completion scripts and persist shell configuration.

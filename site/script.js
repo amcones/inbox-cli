@@ -14,7 +14,7 @@ const copy = {
     localEyebrow: "LOCAL BY DEFAULT", localTitle: "Your notes stay ordinary.", localText: "Open them with any editor. Sync them with any tool. Back them up like any other folder. inbox stores notes by day and keeps the format human-readable.", localPoint1: "Readable daily Markdown", localPoint2: "No account or proprietary database", localPoint3: "Built-in integrity checks and backup verification",
     versionsEyebrow: "WHAT'S NEW", versionsTitle: "Built one useful<br>step at a time.", versionsLede: "Recent releases are read directly from the project's changelog, so this page always follows the source of truth.", fullChangelog: "Read the full changelog", versionsLoading: "Loading recent releases…", versionsUnavailable: "Release history is temporarily unavailable. Open the full changelog to read every version.",
     installEyebrow: "START IN MINUTES", installTitle: "One small binary.<br>Three desktop platforms.", installHint: "Download the matching archive from GitHub Releases, extract it, and place inbox on your PATH.", copy: "Copy", copied: "Copied", copyLabel: "Copy command", allDownloads: "All downloads", installGuide: "Installation guide",
-    closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "Make room for the next thought.", viewGithub: "View on GitHub", footer: "Open source under the MIT License."
+    closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "Make room for the next thought.", viewGithub: "View on GitHub", footer: "Open source under the MIT License.", backToTop: "Back to top"
   },
   zh: {
     skip: "跳到主要内容", navFeatures: "功能", navWorkflow: "工作方式", navVersions: "版本", navInstall: "安装", navGithub: "GitHub",
@@ -31,7 +31,7 @@ const copy = {
     localEyebrow: "默认保存在本地", localTitle: "你的笔记依旧普通。", localText: "可以用任何编辑器打开，用任何工具同步，像普通文件夹一样备份。inbox 按日期存放灵感，并保持格式清晰可读。", localPoint1: "按天组织的可读 Markdown", localPoint2: "没有账号和专有数据库", localPoint3: "内置完整性检查和只读备份验证",
     versionsEyebrow: "版本记录", versionsTitle: "每次更新，<br>解决一个实际问题。", versionsLede: "近期版本直接读取项目的更新记录，因此网站始终与唯一的数据源保持一致。", fullChangelog: "查看完整更新记录", versionsLoading: "正在读取近期版本…", versionsUnavailable: "暂时无法读取版本记录，请打开完整更新记录查看所有版本。",
     installEyebrow: "几分钟即可开始", installTitle: "一个小巧二进制，<br>覆盖三个桌面平台。", installHint: "从 GitHub Releases 下载对应压缩包，解压后将 inbox 放入 PATH。", copy: "复制", copied: "已复制", copyLabel: "复制命令", allDownloads: "全部下载", installGuide: "安装指南",
-    closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "为下一个想法，留一个位置。", viewGithub: "在 GitHub 查看", footer: "以 MIT 许可证开源。"
+    closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "为下一个想法，留一个位置。", viewGithub: "在 GitHub 查看", footer: "以 MIT 许可证开源。", backToTop: "回到顶部"
   }
 };
 
@@ -42,7 +42,7 @@ const commands = {
 };
 
 let language = navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
-const changelogUrl = "https://raw.githubusercontent.com/amcones/inbox-cli/main/CHANGELOG.md";
+const releaseHistory = window.INBOX_RELEASES || [];
 
 function applyLanguage(nextLanguage) {
   language = nextLanguage;
@@ -59,6 +59,7 @@ function applyLanguage(nextLanguage) {
   toggle.setAttribute("aria-label", language === "zh" ? "Switch to English" : "切换到中文");
   toggle.querySelector(".language-current").textContent = language === "zh" ? "中" : "EN";
   toggle.querySelector(".language-other").textContent = language === "zh" ? "EN" : "中";
+  renderVersions(releaseHistory);
 }
 
 document.querySelector(".language-toggle").addEventListener("click", () => {
@@ -88,28 +89,17 @@ document.querySelector(".copy-button").addEventListener("click", async (event) =
   }
 });
 
-function parseChangelog(markdown) {
-  const releases = [];
-  let current = null;
-
-  for (const line of markdown.split("\n")) {
-    const heading = line.match(/^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/);
-    if (heading) {
-      if (releases.length === 4) break;
-      current = { version: heading[1], date: heading[2], changes: [] };
-      releases.push(current);
-      continue;
-    }
-    if (current && line.startsWith("- ")) {
-      current.changes.push(line.slice(2).replaceAll("`", ""));
-    }
-  }
-  return releases;
-}
-
 function renderVersions(releases) {
   const list = document.querySelector("#version-list");
   list.replaceChildren();
+
+  if (!releases.length) {
+    const status = document.createElement("p");
+    status.className = "version-status";
+    status.textContent = copy[language].versionsUnavailable;
+    list.append(status);
+    return;
+  }
 
   for (const release of releases) {
     const card = document.createElement("article");
@@ -122,7 +112,7 @@ function renderVersions(releases) {
     date.dateTime = release.date;
     date.textContent = release.date;
     const changes = document.createElement("ul");
-    for (const change of release.changes.slice(0, 3)) {
+    for (const change of release.changes[language].slice(0, 3)) {
       const item = document.createElement("li");
       item.textContent = change;
       changes.append(item);
@@ -133,21 +123,11 @@ function renderVersions(releases) {
   }
 }
 
-async function loadVersions() {
-  try {
-    const response = await fetch(changelogUrl, { cache: "no-cache" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const releases = parseChangelog(await response.text());
-    if (!releases.length) throw new Error("No releases found");
-    renderVersions(releases);
-  } catch {
-    const status = document.querySelector("#version-list .version-status");
-    if (status) {
-      status.dataset.i18n = "versionsUnavailable";
-      status.textContent = copy[language].versionsUnavailable;
-    }
-  }
-}
+const backToTop = document.querySelector(".back-to-top");
+const updateBackToTop = () => {
+  backToTop.classList.toggle("visible", window.scrollY > 640);
+};
+window.addEventListener("scroll", updateBackToTop, { passive: true });
 
 applyLanguage(language);
-loadVersions();
+updateBackToTop();

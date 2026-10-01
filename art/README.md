@@ -5,7 +5,7 @@ website, release metadata, and future packaging can use a stable local copy.
 
 - Source: [inbox — CLI App Icon](https://www.figma.com/design/PqhcJ39YALTFC94duqRXyt/inbox-%E2%80%94-CLI-App-Icon?node-id=12-2)
 - Design: `inbox / V5 — Rounded hex and side CLI`
-- Exported: 2026-09-30
+- Exported: 2026-10-01
 
 ## Files
 

@@ -1,6 +1,20 @@
 // Generated from CHANGELOG.md. Do not edit by hand.
 window.INBOX_RELEASES = [
   {
+    "version": "0.6.2",
+    "date": "2026-10-01",
+    "changes": {
+      "en": [
+        "Add checksum-verified bootstrap installers that detect the platform and download the latest prebuilt release from GitHub on macOS, Linux, and Windows.",
+        "Make elapsed-time output and review explanations independently configurable through INBOX_SHOW_ELAPSED and INBOX_REVIEW_REASONS."
+      ],
+      "zh": [
+        "为 macOS、Linux 和 Windows 新增带校验的引导安装脚本，自动识别平台并从 GitHub 下载最新预编译版本。",
+        "通过 INBOX_SHOW_ELAPSED 和 INBOX_REVIEW_REASONS 分别配置是否显示命令耗时和 review 原因。"
+      ]
+    }
+  },
+  {
     "version": "0.6.1",
     "date": "2026-10-01",
     "changes": {
@@ -53,24 +67,6 @@ window.INBOX_RELEASES = [
         "验证 v0.5.0 备份可在 v0.5.1 中还原，并在不修改数据的前提下拒绝未知备份格式。",
         "新增 inbox info，展示安装版本、解析后的数据目录、存储状态和资料库统计。",
         "为 Bash、Zsh、Fish 和 PowerShell 补齐新命令与备份操作的补全支持。"
-      ]
-    }
-  },
-  {
-    "version": "0.5.0",
-    "date": "2026-09-30",
-    "changes": {
-      "en": [
-        "Add inbox backup <directory> for locked, validated snapshots of Markdown notes, view history, and trash.",
-        "Add confirmed full-library restore with inbox restore --from <directory>, automatic pre-restore safety backups, and --yes for automation.",
-        "Make committed restore transactions recoverable after interruption while preserving the active lock file.",
-        "Complete backup paths and restore options in Bash, Zsh, Fish, and PowerShell."
-      ],
-      "zh": [
-        "新增 inbox backup <目录>，在锁定并校验后创建 Markdown 灵感、浏览记录和回收站快照。",
-        "新增需确认的整库还原、还原前自动安全备份，以及适用于自动化的 --yes 选项。",
-        "已提交的还原事务在中断后可以恢复，同时保留当前锁文件。",
-        "为 Bash、Zsh、Fish 和 PowerShell 补齐备份路径和还原选项的补全支持。"
       ]
     }
   }

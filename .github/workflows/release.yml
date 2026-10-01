@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist/${{ matrix.asset }}
-          cp target/${{ matrix.target }}/release/inbox README.md LICENSE scripts/update.sh scripts/completion.bash scripts/completion.zsh scripts/completion.fish dist/${{ matrix.asset }}/
+          cp target/${{ matrix.target }}/release/inbox README.md LICENSE scripts/install.sh scripts/update.sh scripts/completion.bash scripts/completion.zsh scripts/completion.fish dist/${{ matrix.asset }}/
           tar -C dist -czf dist/${{ matrix.asset }}.tar.gz ${{ matrix.asset }}
           if command -v sha256sum >/dev/null; then
             (cd dist && sha256sum ${{ matrix.asset }}.tar.gz > ${{ matrix.asset }}.tar.gz.sha256)
@@ -109,7 +109,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist\inbox-windows-x86_64 | Out-Null
-          Copy-Item target\x86_64-pc-windows-msvc\release\inbox.exe, README.md, LICENSE, scripts\update.ps1, scripts\completion.powershell dist\inbox-windows-x86_64\
+          Copy-Item target\x86_64-pc-windows-msvc\release\inbox.exe, README.md, LICENSE, scripts\install.ps1, scripts\update.ps1, scripts\completion.powershell dist\inbox-windows-x86_64\
           Compress-Archive -Path dist\inbox-windows-x86_64 -DestinationPath dist\inbox-windows-x86_64.zip
           $hash = (Get-FileHash dist\inbox-windows-x86_64.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  inbox-windows-x86_64.zip" | Set-Content -NoNewline dist\inbox-windows-x86_64.zip.sha256

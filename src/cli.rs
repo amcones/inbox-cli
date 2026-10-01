@@ -44,6 +44,7 @@ pub const HELP_ZH: &str = "inbox — 随手记录，本地 Markdown 保存
   -V, --version         显示版本
 
 列表、搜索和回顾不计浏览次数；搜索不区分大小写；正文里的 #文字不会自动成为标签。
+将 INBOX_SHOW_ELAPSED 或 INBOX_REVIEW_REASONS 设为 off 可隐藏对应显示内容。
 ";
 
 pub const HELP_EN: &str = "inbox — Capture ideas in local Markdown files
@@ -87,6 +88,7 @@ Options:
   -V, --version          Show version
 
 Lists, searches, and reviews do not count as views. Search is case-insensitive. #words in content do not become tags.
+Set INBOX_SHOW_ELAPSED or INBOX_REVIEW_REASONS to off to hide those display details.
 ";
 
 pub fn help() -> &'static str {

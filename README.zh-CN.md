@@ -16,7 +16,7 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 
 ### 下载预编译版本
 
-从 [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest) 下载对应压缩包；每个压缩包都附有 `.sha256` 校验文件。
+安装脚本会检测当前平台，自动从 [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest) 下载最新压缩包、校验 SHA-256，并配置 `PATH` 和命令补全。
 
 #### macOS
 
@@ -28,25 +28,19 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
-解压后，将程序放入 `PATH`。以 Apple Silicon 为例：
-
 ```bash
-tar -xzf inbox-macos-aarch64.tar.gz
-mkdir -p ~/.local/bin
-install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
-install -m 755 inbox-macos-aarch64/update.sh ~/.local/bin/inbox-update
-inbox --version
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.sh | bash
 ```
-
-确保 `~/.local/bin` 已在 `PATH` 中。
 
 #### Linux
 
-选择 ARM64 或 x86_64 压缩包，解压后将 `inbox` 放入 `PATH` 中的目录。
+使用与 macOS 相同的命令，脚本会自动识别 ARM64 或 x86_64。
 
 #### Windows
 
-解压 ZIP，将 `inbox.exe` 所在目录加入 `PATH`，在 PowerShell 中运行 `inbox --version`。
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.ps1 | Invoke-Expression
+```
 
 ### 从源码编译安装
 
@@ -81,7 +75,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.2 --locked
 ```
 
 ## 更新
@@ -92,7 +86,7 @@ cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.1 --lo
 
 ```bash
 inbox-update                    # 更新到最新版
-inbox-update --version v0.6.1  # 更新到指定版本
+inbox-update --version v0.6.2  # 更新到指定版本
 ```
 
 如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
@@ -101,7 +95,7 @@ inbox-update --version v0.6.1  # 更新到指定版本
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.6.1
+inbox-update.ps1 -Version v0.6.2
 ```
 
 如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
@@ -145,6 +139,10 @@ inbox edit a83f912b --clear-tags
 标签中的英文字母统一转换为小写，因此 `Rust`、`RUST` 和 `rust` 是同一个标签；同时自动去重并去掉开头的 `#`。正文中的 `#文字` 不会自动变成标签。`inbox tags` 使用与灵感列表一致的彩色 `#tag` 形式。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表、搜索和回顾不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
 
 每条命令执行完后都会在标准错误中显示耗时。灵感 ID、灵感行、标签数据和其他可供程序读取的结果仍保留在标准输出中，现有管道可继续独立处理。
+
+## 显示配置
+
+设置 `INBOX_SHOW_ELAPSED=off` 可隐藏命令耗时；设置 `INBOX_REVIEW_REASONS=off` 可隐藏每条 `review` 候选下方的原因说明。两项默认均为 `on`，支持 `1/0`、`true/false`、`yes/no` 或 `on/off`，不区分大小写。
 
 ## 命令补全
 

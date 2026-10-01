@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.6.0 — 2026-10-01
+
+- Redesign list, search, review, and trash output with compact relative times, result counts, and terminal-aware colors while keeping redirected note output plain and script-friendly.
+- Highlight case-insensitive search matches and center long excerpts around the first match.
+- Expand `inbox info` with an ASCII icon, version, UTC build time, license, author, storage location, and library counts.
+
 ## 0.5.1 — 2026-09-30
 
 - Add `inbox backup verify <directory>` for read-only validation of backup manifests, notes, view history, and trash.

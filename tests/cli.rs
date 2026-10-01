@@ -119,7 +119,11 @@ fn empty_inbox_does_not_create_files() {
 fn info_reports_location_health_and_counts_without_initializing_an_empty_store() {
     let inbox = Inbox::new();
     let empty = inbox.ok(&["info", "--lang", "en"]);
-    assert!(empty.contains("Version: 0.5.1"));
+    assert!(empty.contains("______"));
+    assert!(empty.contains("Version: 0.6.0"));
+    assert!(empty.contains("Built: "));
+    assert!(empty.contains("License: MIT"));
+    assert!(empty.contains("Author: James Amcones"));
     assert!(empty.contains(&format!("Data directory: {}", inbox.0.display())));
     assert!(empty.contains("Storage: not initialized"));
     assert!(empty.contains("Day files: 0, notes: 0, views: 0, trash: 0"));
@@ -132,6 +136,58 @@ fn info_reports_location_health_and_counts_without_initializing_an_empty_store()
     let populated = inbox.ok(&["info", "--lang", "en"]);
     assert!(populated.contains("Storage format: 1"));
     assert!(populated.contains("Day files: 1, notes: 1, views: 1, trash: 1"));
+}
+
+#[test]
+fn lists_use_rough_time_and_report_count_while_show_keeps_full_time() {
+    let inbox = Inbox::new();
+    let note = inbox.add_at(
+        "A compact terminal note",
+        &["Product"],
+        "2026-09-28T09:10:11+08:00[Asia/Shanghai]",
+    );
+
+    let listed = inbox.run(&["list", "--lang", "en"]);
+    assert!(listed.status.success());
+    let stdout = String::from_utf8(listed.stdout).unwrap();
+    let stderr = String::from_utf8(listed.stderr).unwrap();
+    assert!(stdout.contains(note.short_id()));
+    assert!(stdout.contains("A compact terminal note"));
+    assert!(stdout.contains("#product"));
+    assert!(!stdout.contains("2026-09-28"));
+    assert!(!stdout.contains("09:10:11"));
+    assert!(!stdout.contains('\x1b'));
+    assert_eq!(stderr, "Showing 1 notes\n");
+
+    let shown = inbox.ok(&["show", note.short_id(), "--no-track", "--lang", "en"]);
+    assert!(shown.contains("2026-09-28T09:10:11.000000000+08:00"));
+}
+
+#[test]
+fn forced_color_styles_fields_and_highlights_all_search_matches() {
+    let inbox = Inbox::new();
+    let content = format!("{}Rust and RUST belong here", "context ".repeat(15));
+    inbox.add_at(
+        &content,
+        &["Rust"],
+        "2026-09-28T09:10:11+08:00[Asia/Shanghai]",
+    );
+
+    let output = inbox
+        .command()
+        .env_remove("NO_COLOR")
+        .env("TERM", "xterm-256color")
+        .env("CLICOLOR_FORCE", "1")
+        .args(["search", "rust", "--lang", "en"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("\x1b[36m"));
+    assert!(stdout.contains("\x1b[1;34m"));
+    assert!(stdout.contains("\x1b[1;33mRust\x1b[0m"));
+    assert!(stdout.contains("\x1b[1;33mRUST\x1b[0m"));
+    assert!(stdout.contains("\x1b[35m#rust\x1b[0m"));
 }
 
 #[test]

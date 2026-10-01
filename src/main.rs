@@ -13,6 +13,7 @@ use std::{
 };
 
 mod confirmation;
+mod terminal;
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
@@ -43,6 +44,8 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<()> {
     let mut out = io::BufWriter::new(io::stdout().lock());
+    let theme = terminal::Theme::stdout();
+    let error_theme = terminal::Theme::stderr();
     match cli.command {
         Command::Help => {
             write!(out, "{}", cli::help())?;
@@ -92,15 +95,16 @@ fn run(cli: Cli) -> Result<()> {
             sort,
             limit,
         } => {
+            let now = jiff::Timestamp::now();
             let notes = match Store::open(&root, false)? {
-                Some(store) => {
-                    query::list(&store, &tags, any, sort, limit, jiff::Timestamp::now())?
-                }
+                Some(store) => query::list(&store, &tags, any, sort, limit, now)?,
                 None => Vec::new(),
             };
-            for note in notes {
-                write_summary(&mut out, &note)?;
+            for note in &notes {
+                write_summary(&mut out, note, now, &theme, None)?;
             }
+            out.flush()?;
+            write_result_count(notes.len(), &error_theme)?;
         }
         Command::Search {
             query: text,
@@ -109,21 +113,16 @@ fn run(cli: Cli) -> Result<()> {
             sort,
             limit,
         } => {
+            let now = jiff::Timestamp::now();
             let notes = match Store::open(&root, false)? {
-                Some(store) => query::search(
-                    &store,
-                    &text,
-                    &tags,
-                    any,
-                    sort,
-                    limit,
-                    jiff::Timestamp::now(),
-                )?,
+                Some(store) => query::search(&store, &text, &tags, any, sort, limit, now)?,
                 None => Vec::new(),
             };
-            for note in notes {
-                write_summary(&mut out, &note)?;
+            for note in &notes {
+                write_summary(&mut out, note, now, &theme, Some(&text))?;
             }
+            out.flush()?;
+            write_result_count(notes.len(), &error_theme)?;
         }
         Command::Review { limit } => {
             let now = jiff::Timestamp::now();
@@ -131,9 +130,11 @@ fn run(cli: Cli) -> Result<()> {
                 Some(store) => query::review(&store, limit, now)?,
                 None => Vec::new(),
             };
-            for item in items {
-                write_review(&mut out, &item, now)?;
+            for item in &items {
+                write_review(&mut out, item, now, &theme)?;
             }
+            out.flush()?;
+            write_result_count(items.len(), &error_theme)?;
         }
         Command::Show { prefix, track } => {
             // Hold the lock until tracking is complete so deletion cannot
@@ -144,18 +145,22 @@ fn run(cli: Cli) -> Result<()> {
             let store = Store::open(&root, track)?
                 .ok_or(crate::i18n::text("inbox 为空", "The inbox is empty"))?;
             let note = query::find(&store, &prefix)?;
-            writeln!(out, "{}  {}", note.meta.id, note.meta.created)?;
+            theme.write(&mut out, terminal::BLUE, &note.meta.id)?;
+            write!(out, "  ")?;
+            theme.write(&mut out, terminal::CYAN, &note.meta.created)?;
+            writeln!(out)?;
             if !note.meta.tags.is_empty() {
-                writeln!(
-                    out,
-                    "{}",
-                    note.meta
-                        .tags
-                        .iter()
-                        .map(|t| format!("#{}", terminal_text(t, false)))
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                )?;
+                for (index, tag) in note.meta.tags.iter().enumerate() {
+                    if index != 0 {
+                        write!(out, " ")?;
+                    }
+                    theme.write(
+                        &mut out,
+                        terminal::MAGENTA,
+                        format_args!("#{}", terminal_text(tag, false)),
+                    )?;
+                }
+                writeln!(out)?;
             }
             writeln!(out, "\n{}", terminal_text(&note.content, true))?;
             // Do not count a failed/broken-pipe output as a successful view.
@@ -330,10 +335,17 @@ fn run(cli: Cli) -> Result<()> {
                     )?;
                 }
             } else if let Some(store) = Store::open(&root, false)? {
-                for (entry, note) in trash::list(&store)? {
-                    write!(out, "{}  {}  ", note.short_id(), &entry.deleted_at[..19])?;
-                    write_summary_body(&mut out, &note)?;
+                let now = jiff::Timestamp::now();
+                let items = trash::list(&store)?;
+                for (entry, note) in &items {
+                    let deleted = entry.deleted_at.parse::<jiff::Timestamp>()?;
+                    write_summary_at(&mut out, note, rough_time(deleted, now), &theme, None)?;
                 }
+                out.flush()?;
+                write_result_count(items.len(), &error_theme)?;
+            } else {
+                out.flush()?;
+                write_result_count(0, &error_theme)?;
             }
         }
         Command::Restore { prefix } => {
@@ -428,11 +440,8 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 None => (false, 0, 0, 0, 0),
             };
-            writeln!(
-                out,
-                "{}",
-                inbox::message!("版本：{}", "Version: {}", env!("CARGO_PKG_VERSION"))
-            )?;
+            write_info_header(&mut out, &theme)?;
+            writeln!(out)?;
             writeln!(
                 out,
                 "{}",
@@ -507,38 +516,44 @@ fn run(cli: Cli) -> Result<()> {
     Ok(())
 }
 
-fn write_summary(out: &mut impl Write, note: &Note) -> Result<()> {
-    write!(
-        out,
-        "{}  {} {}  ",
-        note.short_id(),
-        &note.meta.created[..10],
-        &note.meta.created[11..19]
-    )?;
-    write_summary_body(out, note)
+fn write_summary(
+    out: &mut impl Write,
+    note: &Note,
+    now: jiff::Timestamp,
+    theme: &terminal::Theme,
+    highlight: Option<&str>,
+) -> Result<()> {
+    write_summary_at(out, note, rough_time(note.timestamp, now), theme, highlight)
 }
 
-fn write_summary_body(out: &mut impl Write, note: &Note) -> Result<()> {
+fn write_summary_at(
+    out: &mut impl Write,
+    note: &Note,
+    time: String,
+    theme: &terminal::Theme,
+    highlight: Option<&str>,
+) -> Result<()> {
+    theme.write(out, terminal::CYAN, format_args!("{time:>8}"))?;
+    write!(out, "  ")?;
+    theme.write(out, terminal::BLUE, note.short_id())?;
+    write!(out, "  ")?;
+
     let clean = terminal_text(&note.content, false);
-    let mut chars = clean.chars();
-    let mut summary: String = chars.by_ref().take(80).collect();
-    if chars.next().is_some() {
-        summary.push('…');
+    let summary = excerpt(&clean, highlight, 80);
+    if let Some(query) = highlight {
+        write_highlighted(out, &summary, query, theme)?;
+    } else {
+        write!(out, "{summary}")?;
     }
-    let tags = note
-        .meta
-        .tags
-        .iter()
-        .map(|tag| format!("#{}", terminal_text(tag, false)))
-        .collect::<Vec<_>>()
-        .join(" ");
-    writeln!(
-        out,
-        "{}{}{}",
-        summary,
-        if tags.is_empty() { "" } else { "  " },
-        tags
-    )?;
+    for tag in &note.meta.tags {
+        write!(out, "  ")?;
+        theme.write(
+            out,
+            terminal::MAGENTA,
+            format_args!("#{}", terminal_text(tag, false)),
+        )?;
+    }
+    writeln!(out)?;
     Ok(())
 }
 
@@ -546,8 +561,9 @@ fn write_review(
     out: &mut impl Write,
     item: &query::ReviewItem,
     now: jiff::Timestamp,
+    theme: &terminal::Theme,
 ) -> Result<()> {
-    write_summary(out, &item.note)?;
+    write_summary(out, &item.note, now, theme, None)?;
     let age_seconds = (now.as_second() - item.note.timestamp.as_second()).max(0);
     let age_days = age_seconds / 86_400;
     let time_reason = if age_days <= 14 {
@@ -567,11 +583,148 @@ fn write_review(
         Some(reason) => inbox::message!("{time_reason}；{reason}", "{time_reason}; {reason}"),
         None => time_reason,
     };
-    writeln!(
-        out,
-        "  {}",
-        inbox::message!("原因：{reasons}", "Reason: {reasons}")
-    )?;
+    write!(out, "          ")?;
+    theme.write(out, terminal::DIM, i18n::text("原因：", "Reason:"))?;
+    theme.write(out, terminal::DIM, format_args!(" {reasons}"))?;
+    writeln!(out)?;
+    Ok(())
+}
+
+fn rough_time(timestamp: jiff::Timestamp, now: jiff::Timestamp) -> String {
+    let seconds = (now.as_second() - timestamp.as_second()).max(0);
+    match seconds {
+        0..=59 => i18n::text("刚刚", "now").to_owned(),
+        60..=3_599 => inbox::message!("{} 分钟", "{}m", seconds / 60),
+        3_600..=86_399 => inbox::message!("{} 小时", "{}h", seconds / 3_600),
+        86_400..=2_591_999 => inbox::message!("{} 天", "{}d", seconds / 86_400),
+        2_592_000..=31_535_999 => {
+            inbox::message!("{} 个月", "{}mo", seconds / 2_592_000)
+        }
+        _ => inbox::message!("{} 年", "{}y", seconds / 31_536_000),
+    }
+}
+
+fn excerpt(text: &str, query: Option<&str>, limit: usize) -> String {
+    let boundaries = text
+        .char_indices()
+        .map(|(index, _)| index)
+        .chain(std::iter::once(text.len()))
+        .collect::<Vec<_>>();
+    let character_count = boundaries.len().saturating_sub(1);
+    if character_count <= limit {
+        return text.to_owned();
+    }
+
+    let match_range = query.and_then(|query| find_case_insensitive(text, query, 0));
+    let mut start_character = match_range
+        .and_then(|(start, _)| boundaries.binary_search(&start).ok())
+        .map_or(0, |position| position.saturating_sub(20));
+    start_character = start_character.min(character_count - limit);
+    if let Some((_, end)) = match_range
+        && let Ok(end_character) = boundaries.binary_search(&end)
+        && end_character > start_character + limit
+    {
+        start_character = end_character
+            .saturating_sub(limit)
+            .min(character_count - limit);
+    }
+    let end_character = (start_character + limit).min(character_count);
+    let mut summary = String::new();
+    if start_character != 0 {
+        summary.push('…');
+    }
+    summary.push_str(&text[boundaries[start_character]..boundaries[end_character]]);
+    if end_character != character_count {
+        summary.push('…');
+    }
+    summary
+}
+
+fn find_case_insensitive(text: &str, query: &str, from: usize) -> Option<(usize, usize)> {
+    let needle = query.to_lowercase();
+    if needle.is_empty() {
+        return None;
+    }
+    for (relative_start, _) in text[from..].char_indices() {
+        let start = from + relative_start;
+        let mut folded = String::new();
+        for (relative_end, character) in text[start..].char_indices() {
+            folded.extend(character.to_lowercase());
+            if folded.len() >= needle.len() {
+                if folded == needle {
+                    return Some((start, start + relative_end + character.len_utf8()));
+                }
+                break;
+            }
+        }
+    }
+    None
+}
+
+fn write_highlighted(
+    out: &mut impl Write,
+    text: &str,
+    query: &str,
+    theme: &terminal::Theme,
+) -> Result<()> {
+    let mut cursor = 0;
+    while let Some((start, end)) = find_case_insensitive(text, query, cursor) {
+        write!(out, "{}", &text[cursor..start])?;
+        theme.write(out, terminal::MATCH, &text[start..end])?;
+        cursor = end;
+    }
+    write!(out, "{}", &text[cursor..])?;
+    Ok(())
+}
+
+fn write_result_count(count: usize, theme: &terminal::Theme) -> Result<()> {
+    let mut error = io::stderr().lock();
+    let message = inbox::message!("显示 {count} 条", "Showing {count} notes");
+    theme.write(&mut error, terminal::DIM, message)?;
+    writeln!(error)?;
+    Ok(())
+}
+
+fn write_info_header(out: &mut impl Write, theme: &terminal::Theme) -> Result<()> {
+    const ART: [&str; 7] = [
+        "      ______      ",
+        "    /|      |\\     ",
+        "   / |  ==  | \\   ",
+        "  /__|  ==  |__\\  ",
+        "  |  |______|  |  ",
+        "  |  >_        |  ",
+        "  |____________|  ",
+    ];
+    let epoch = env!("INBOX_BUILD_UNIX_EPOCH").parse::<i64>()?;
+    let built_at = jiff::Timestamp::new(epoch, 0)?.to_string();
+    let fields = [
+        ("", "inbox".to_owned()),
+        (
+            i18n::text("版本", "Version"),
+            env!("CARGO_PKG_VERSION").to_owned(),
+        ),
+        (i18n::text("构建时间", "Built"), built_at),
+        (
+            i18n::text("开源协议", "License"),
+            env!("CARGO_PKG_LICENSE").to_owned(),
+        ),
+        (
+            i18n::text("作者", "Author"),
+            env!("CARGO_PKG_AUTHORS").to_owned(),
+        ),
+    ];
+    for (index, line) in ART.iter().enumerate() {
+        theme.write(out, terminal::BLUE, line)?;
+        if let Some((label, value)) = fields.get(index) {
+            if label.is_empty() {
+                theme.write(out, terminal::BLUE, value)?;
+            } else {
+                theme.write(out, terminal::DIM, format_args!("{label}: "))?;
+                write!(out, "{value}")?;
+            }
+        }
+        writeln!(out)?;
+    }
     Ok(())
 }
 
@@ -627,4 +780,34 @@ fn confirm_empty_trash(count: usize) -> Result<bool> {
     let confirmed = confirmation::read_key()?;
     eprintln!();
     Ok(confirmed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn excerpt_keeps_a_late_search_match_visible() {
+        let text = format!("{}Rust makes the match visible", "x".repeat(100));
+        let summary = excerpt(&text, Some("rust"), 40);
+        assert!(summary.starts_with('…'));
+        assert!(summary.contains("Rust"));
+        assert!(summary.chars().count() <= 42);
+    }
+
+    #[test]
+    fn search_highlight_is_case_insensitive() {
+        let mut output = Vec::new();
+        write_highlighted(
+            &mut output,
+            "Learn Rust, then RUST again",
+            "rust",
+            &terminal::Theme::colored(),
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Learn \x1b[1;33mRust\x1b[0m, then \x1b[1;33mRUST\x1b[0m again"
+        );
+    }
 }

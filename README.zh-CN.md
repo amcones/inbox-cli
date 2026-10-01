@@ -81,7 +81,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.0 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.1 --locked
 ```
 
 ## 更新
@@ -92,7 +92,7 @@ cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.0 --lo
 
 ```bash
 inbox-update                    # 更新到最新版
-inbox-update --version v0.6.0  # 更新到指定版本
+inbox-update --version v0.6.1  # 更新到指定版本
 ```
 
 如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
@@ -101,7 +101,7 @@ inbox-update --version v0.6.0  # 更新到指定版本
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.6.0
+inbox-update.ps1 -Version v0.6.1
 ```
 
 如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
@@ -142,7 +142,9 @@ inbox edit a83f912b --clear-tags
 | 查看但不计浏览次数 | `inbox show <ID> --no-track` |
 | 完整用法 | `inbox help` |
 
-标签中的英文字母统一转换为小写，因此 `Rust`、`RUST` 和 `rust` 是同一个标签；同时自动去重并去掉开头的 `#`。正文中的 `#文字` 不会自动变成标签。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表、搜索和回顾不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
+标签中的英文字母统一转换为小写，因此 `Rust`、`RUST` 和 `rust` 是同一个标签；同时自动去重并去掉开头的 `#`。正文中的 `#文字` 不会自动变成标签。`inbox tags` 使用与灵感列表一致的彩色 `#tag` 形式。只有成功输出的 `show` 才计一次浏览，重定向到文件也计数；列表、搜索和回顾不计数。ID 支持至少四位的唯一前缀。单条正文最多 1 MiB，最多 64 个标签，每个标签最多 128 字节。
+
+每条命令执行完后都会在标准错误中显示耗时。灵感 ID、灵感行、标签数据和其他可供程序读取的结果仍保留在标准输出中，现有管道可继续独立处理。
 
 ## 命令补全
 

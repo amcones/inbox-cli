@@ -10,12 +10,14 @@ use inbox::{
 use std::{
     io::{self, Read, Write},
     process::ExitCode,
+    time::{Duration, Instant},
 };
 
 mod confirmation;
 mod terminal;
 
 fn main() -> ExitCode {
+    let started = Instant::now();
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let cli = match i18n::configure(&args).and_then(|_| cli::parse(args)) {
         Ok(cli) => cli,
@@ -24,19 +26,25 @@ fn main() -> ExitCode {
                 "inbox: {e}\n{}",
                 i18n::text("运行 inbox help 查看用法", "Run inbox help for usage")
             );
+            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
             return ExitCode::from(2);
         }
     };
     match run(cli) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(()) => {
+            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
+            ExitCode::SUCCESS
+        }
         Err(e)
             if e.downcast_ref::<io::Error>()
                 .is_some_and(|e| e.kind() == io::ErrorKind::BrokenPipe) =>
         {
+            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
             ExitCode::SUCCESS
         }
         Err(e) => {
             eprintln!("inbox: {e}");
+            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
             ExitCode::FAILURE
         }
     }
@@ -423,7 +431,12 @@ fn run(cli: Cli) -> Result<()> {
                 let tags = query::tags(&store)?;
                 drop(store);
                 for (tag, count) in tags {
-                    writeln!(out, "{}\t{count}", terminal_text(&tag, false))?;
+                    theme.write(
+                        &mut out,
+                        terminal::MAGENTA,
+                        format_args!("#{}", terminal_text(&tag, false)),
+                    )?;
+                    writeln!(out, "\t{count}")?;
                 }
             }
         }
@@ -686,14 +699,19 @@ fn write_result_count(count: usize, theme: &terminal::Theme) -> Result<()> {
 }
 
 fn write_info_header(out: &mut impl Write, theme: &terminal::Theme) -> Result<()> {
-    const ART: [&str; 7] = [
-        "      ______      ",
-        "    /|      |\\     ",
-        "   / |  ==  | \\   ",
-        "  /__|  ==  |__\\  ",
-        "  |  |______|  |  ",
-        "  |  >_        |  ",
-        "  |____________|  ",
+    const ART: [&str; 12] = [
+        "         __________         ",
+        "      .-'          '-.      ",
+        "    .'    __________    '.    ",
+        "   /    /|          |\\    \\   ",
+        "  /    / |   ==     | \\    \\  ",
+        " /____/  |   ==     |  \\____\\ ",
+        "|    |   |__________|   |    |",
+        "|    |  /            \\  |    |",
+        "|    | /              \\ |    |",
+        "|    |/      >_        \\|    |",
+        "|    /__________________\\    |",
+        "|____________________________|",
     ];
     let epoch = env!("INBOX_BUILD_UNIX_EPOCH").parse::<i64>()?;
     let built_at = jiff::Timestamp::new(epoch, 0)?.to_string();
@@ -726,6 +744,23 @@ fn write_info_header(out: &mut impl Write, theme: &terminal::Theme) -> Result<()
         writeln!(out)?;
     }
     Ok(())
+}
+
+fn write_elapsed(duration: Duration, theme: &terminal::Theme) -> io::Result<()> {
+    let value = if duration.as_micros() < 1_000 {
+        format!("{} us", duration.as_micros())
+    } else if duration.as_secs_f64() < 1.0 {
+        format!("{:.2} ms", duration.as_secs_f64() * 1_000.0)
+    } else {
+        format!("{:.2} s", duration.as_secs_f64())
+    };
+    let mut error = io::stderr().lock();
+    theme.write(
+        &mut error,
+        terminal::DIM,
+        inbox::message!("耗时 {value}", "Elapsed {value}"),
+    )?;
+    writeln!(error)
 }
 
 fn read_stdin_content(content: &mut String) -> Result<()> {

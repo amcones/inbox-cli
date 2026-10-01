@@ -86,8 +86,11 @@ Keep [README.md](README.md) in English and [docs/README.zh-CN.md](README.zh-CN.m
 ## Website and brand assets
 
 The dependency-free introducing site lives in `site/`. Run
-`python3 scripts/check-site.py` after changing its HTML, CSS, JavaScript, or
-assets, then preview both desktop and mobile widths. A push to `main` that
+`python3 scripts/build-site-releases.py` after changing the latest four release
+entries in `CHANGELOG.md`; their inline `zh` comments are the Chinese source for
+the generated website cards. Run `python3 scripts/check-site.py` after changing
+the site's HTML, CSS, JavaScript, generated release data, or assets, then preview
+both desktop and mobile widths. A push to `main` that
 changes the site deploys it through the GitHub Pages workflow; ordinary topic
 branches do not deploy.
 

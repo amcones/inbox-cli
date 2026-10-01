@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.6.1 — 2026-10-01
+
+- Increase the `inbox info` ASCII icon resolution and show `inbox tags` entries as the same colored `#tag` form used in note lists. <!-- zh: 提高 inbox info 的 ASCII 图标分辨率，并让 inbox tags 使用与灵感列表一致的彩色 #tag 形式。 -->
+- Report elapsed time after every command on standard error, preserving standard output for scripts and pipelines. <!-- zh: 每条命令执行后在标准错误中显示耗时，同时保持标准输出可用于脚本和管道。 -->
+- Replace all committed icon sizes with the latest direct Figma exports and refresh the website icon copies. <!-- zh: 使用 Figma 最新直接导出替换仓库中的全部图标尺寸，并同步更新网站图标副本。 -->
+- Generate bilingual website release history from `CHANGELOG.md` at build time, removing the unreliable runtime fetch and its duplicate maintenance burden. <!-- zh: 构建时从 CHANGELOG.md 生成双语网站版本记录，移除不稳定的运行时请求，也无需维护第二份版本数据。 -->
+- Add an accessible, responsive back-to-top control and language-specific documentation links to the introducing website. <!-- zh: 为产品主页新增支持无障碍和响应式布局的回到顶部按钮，并按页面语言链接对应的中英文文档。 -->
+
 ## 0.6.0 — 2026-10-01
 
 - Redesign list, search, review, and trash output with compact relative times, result counts, and terminal-aware colors while keeping redirected note output plain and script-friendly. <!-- zh: 重新设计列表、搜索、回顾和回收站输出，使用简洁的相对时间、结果总数和终端感知配色，同时保持重定向输出为纯文本并兼容脚本。 -->

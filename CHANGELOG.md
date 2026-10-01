@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.6.2 — 2026-10-01
+
+- Add checksum-verified bootstrap installers that detect the platform and download the latest prebuilt release from GitHub on macOS, Linux, and Windows. <!-- zh: 为 macOS、Linux 和 Windows 新增带校验的引导安装脚本，自动识别平台并从 GitHub 下载最新预编译版本。 -->
+- Make elapsed-time output and `review` explanations independently configurable through `INBOX_SHOW_ELAPSED` and `INBOX_REVIEW_REASONS`. <!-- zh: 通过 INBOX_SHOW_ELAPSED 和 INBOX_REVIEW_REASONS 分别配置是否显示命令耗时和 review 原因。 -->
+- Convert the supplied icon artwork into a compact two-tone ASCII mark and lay out `inbox info` as a fastfetch-style left-art/right-details panel. <!-- zh: 将提供的图标素材转换为紧凑的双色 ASCII 字符画，并把 inbox info 调整为类似 fastfetch 的左图右文布局。 -->
+
 ## 0.6.1 — 2026-10-01
 
 - Increase the `inbox info` ASCII icon resolution and show `inbox tags` entries as the same colored `#tag` form used in note lists. <!-- zh: 提高 inbox info 的 ASCII 图标分辨率，并让 inbox tags 使用与灵感列表一致的彩色 #tag 形式。 -->

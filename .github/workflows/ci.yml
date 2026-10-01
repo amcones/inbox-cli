@@ -142,7 +142,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          bash -n scripts/build.sh scripts/install.sh
+          bash -n scripts/build.sh scripts/install.sh scripts/install-release.sh
           bash -n scripts/update.sh scripts/test-update.sh
           scripts/build.sh
           scripts/install.sh \

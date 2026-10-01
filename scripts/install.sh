@@ -6,6 +6,7 @@ project_dir="$(cd -- "$script_dir/.." && pwd)"
 bin_dir="${INBOX_BIN_DIR:-${HOME:?HOME is required}/.local/bin}"
 shell_name="auto"
 skip_build=false
+package_dir=""
 shell_config=""
 
 usage() {
@@ -33,6 +34,12 @@ while (($#)); do
             skip_build=true
             shift
             ;;
+        --package-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "install.sh: --package-dir requires a value" >&2; exit 2; }
+            package_dir="$2"
+            skip_build=true
+            shift 2
+            ;;
         -h|--help)
             usage
             exit 0
@@ -57,7 +64,13 @@ case "$shell_name" in
     *) echo "install.sh: shell must be auto, bash, zsh, fish, or none" >&2; exit 2 ;;
 esac
 
-binary="$project_dir/target/release/inbox"
+if [[ -n "$package_dir" ]]; then
+    binary="$package_dir/inbox"
+    asset_dir="$package_dir"
+else
+    binary="$project_dir/target/release/inbox"
+    asset_dir="$script_dir"
+fi
 if [[ "$skip_build" == false ]]; then
     "$script_dir/build.sh" >/dev/null
 elif [[ ! -x "$binary" ]]; then
@@ -67,7 +80,7 @@ fi
 
 mkdir -p "$bin_dir"
 install -m 755 "$binary" "$bin_dir/inbox"
-install -m 755 "$script_dir/update.sh" "$bin_dir/inbox-update"
+install -m 755 "$asset_dir/update.sh" "$bin_dir/inbox-update"
 
 completion_path=""
 case "$shell_name" in
@@ -83,7 +96,7 @@ case "$shell_name" in
 esac
 if [[ -n "$completion_path" ]]; then
     mkdir -p "$(dirname -- "$completion_path")"
-    cp "$script_dir/completion.$shell_name" "$completion_path"
+    cp "$asset_dir/completion.$shell_name" "$completion_path"
 fi
 
 append_once() {

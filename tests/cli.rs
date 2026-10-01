@@ -119,15 +119,18 @@ fn empty_inbox_does_not_create_files() {
 fn info_reports_location_health_and_counts_without_initializing_an_empty_store() {
     let inbox = Inbox::new();
     let empty = inbox.ok(&["info", "--lang", "en"]);
-    assert!(empty.contains("______"));
-    assert!(empty.contains("|____________________________|"));
-    assert!(empty.contains("Version: 0.6.1"));
+    assert!(empty.contains("..:::.:**#**:."));
+    assert!(empty.contains("@@@@@@@@@@@@@@@@@@@@@"));
+    assert!(empty.contains("Version: 0.6.2"));
     assert!(empty.contains("Built: "));
     assert!(empty.contains("License: MIT"));
     assert!(empty.contains("Author: James Amcones"));
     assert!(empty.contains(&format!("Data directory: {}", inbox.0.display())));
     assert!(empty.contains("Storage: not initialized"));
-    assert!(empty.contains("Day files: 0, notes: 0, views: 0, trash: 0"));
+    assert!(empty.contains("Day files: 0"));
+    assert!(empty.contains("Notes: 0"));
+    assert!(empty.contains("Views: 0"));
+    assert!(empty.contains("Trash: 0"));
     assert!(!inbox.0.exists());
 
     let active = inbox.ok(&["add", "active"]);
@@ -135,8 +138,11 @@ fn info_reports_location_health_and_counts_without_initializing_an_empty_store()
     let trashed = inbox.ok(&["add", "trashed"]);
     inbox.ok(&["delete", trashed.trim()]);
     let populated = inbox.ok(&["info", "--lang", "en"]);
-    assert!(populated.contains("Storage format: 1"));
-    assert!(populated.contains("Day files: 1, notes: 1, views: 1, trash: 1"));
+    assert!(populated.contains("Storage: format 1"));
+    assert!(populated.contains("Day files: 1"));
+    assert!(populated.contains("Notes: 1"));
+    assert!(populated.contains("Views: 1"));
+    assert!(populated.contains("Trash: 1"));
 }
 
 #[test]
@@ -217,6 +223,49 @@ fn every_completed_command_reports_elapsed_time_on_stderr() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.starts_with("Elapsed "));
     assert!(stderr.ends_with('\n'));
+}
+
+#[test]
+fn display_settings_can_hide_elapsed_time_and_review_reasons() {
+    let inbox = Inbox::new();
+    inbox.ok(&["add", "configurable output"]);
+
+    let without_elapsed = inbox
+        .command()
+        .env("INBOX_SHOW_ELAPSED", "off")
+        .env("INBOX_REVIEW_REASONS", "on")
+        .args(["review", "--lang", "en"])
+        .output()
+        .unwrap();
+    assert!(without_elapsed.status.success());
+    assert!(
+        String::from_utf8(without_elapsed.stdout)
+            .unwrap()
+            .contains("Reason:")
+    );
+    assert_eq!(
+        String::from_utf8(without_elapsed.stderr).unwrap(),
+        "Showing 1 notes\n"
+    );
+
+    let without_reasons = inbox
+        .command()
+        .env("INBOX_SHOW_ELAPSED", "on")
+        .env("INBOX_REVIEW_REASONS", "false")
+        .args(["review", "--lang", "en"])
+        .output()
+        .unwrap();
+    assert!(without_reasons.status.success());
+    assert!(
+        !String::from_utf8(without_reasons.stdout)
+            .unwrap()
+            .contains("Reason:")
+    );
+    assert!(
+        String::from_utf8(without_reasons.stderr)
+            .unwrap()
+            .contains("Elapsed ")
+    );
 }
 
 #[test]

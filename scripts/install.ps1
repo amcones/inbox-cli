@@ -2,14 +2,16 @@ param(
     [string]$BinDir = $(if ($env:INBOX_BIN_DIR) { $env:INBOX_BIN_DIR } else { Join-Path $env:LOCALAPPDATA "Programs\inbox" }),
     [ValidateSet("powershell", "none")]
     [string]$Shell = "powershell",
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    [string]$PackageDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectDir = Split-Path -Parent $PSScriptRoot
-$Binary = Join-Path $ProjectDir "target\release\inbox.exe"
+$AssetDir = if ($PackageDir) { $PackageDir } else { $PSScriptRoot }
+$Binary = if ($PackageDir) { Join-Path $PackageDir "inbox.exe" } else { Join-Path $ProjectDir "target\release\inbox.exe" }
 
-if (-not $NoBuild) {
+if (-not $NoBuild -and -not $PackageDir) {
     & (Join-Path $PSScriptRoot "build.ps1") | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "build.ps1 failed with exit code $LASTEXITCODE"
@@ -21,11 +23,11 @@ if (-not $NoBuild) {
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $InstalledBinary = Join-Path $BinDir "inbox.exe"
 Copy-Item -LiteralPath $Binary -Destination $InstalledBinary -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot "update.ps1") -Destination (Join-Path $BinDir "inbox-update.ps1") -Force
+Copy-Item -LiteralPath (Join-Path $AssetDir "update.ps1") -Destination (Join-Path $BinDir "inbox-update.ps1") -Force
 
 if ($Shell -eq "powershell") {
     $CompletionPath = Join-Path $BinDir "inbox-completion.ps1"
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "completion.powershell") -Destination $CompletionPath -Force
+    Copy-Item -LiteralPath (Join-Path $AssetDir "completion.powershell") -Destination $CompletionPath -Force
     Write-Output "Installed PowerShell completion to $CompletionPath"
 
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")

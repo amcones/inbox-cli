@@ -16,7 +16,7 @@ inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped
 
 ### Prebuilt release
 
-Download an archive from [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest). Each archive has a matching `.sha256` checksum file.
+The installer detects the current platform, downloads the latest archive from [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest), verifies its SHA-256 checksum, and configures `PATH` and completion.
 
 #### macOS
 
@@ -28,25 +28,19 @@ Download an archive from [GitHub Releases](https://github.com/amcones/inbox-cli/
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
-Extract the archive and put the binary in your `PATH`. For example, on Apple Silicon:
-
 ```bash
-tar -xzf inbox-macos-aarch64.tar.gz
-mkdir -p ~/.local/bin
-install -m 755 inbox-macos-aarch64/inbox ~/.local/bin/inbox
-install -m 755 inbox-macos-aarch64/update.sh ~/.local/bin/inbox-update
-inbox --version
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.sh | bash
 ```
-
-Ensure `~/.local/bin` is in your `PATH`.
 
 #### Linux
 
-Use the ARM64 or x86_64 archive, extract it, and put `inbox` in a directory on your `PATH`.
+Use the same command as macOS; ARM64 and x86_64 are detected automatically.
 
 #### Windows
 
-Extract the ZIP, add the folder containing `inbox.exe` to `PATH`, and run `inbox --version` in PowerShell.
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.ps1 | Invoke-Expression
+```
 
 ### Build and install from source
 
@@ -81,7 +75,7 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.2 --locked
 ```
 
 ## Update
@@ -92,7 +86,7 @@ Release and source-script installations include an updater that verifies the arc
 
 ```bash
 inbox-update                    # latest release
-inbox-update --version v0.6.1  # a specific release
+inbox-update --version v0.6.2  # a specific release
 ```
 
 If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
@@ -101,7 +95,7 @@ If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.6.1
+inbox-update.ps1 -Version v0.6.2
 ```
 
 Use `-BinDir` when `inbox.exe` is outside `PATH`. Cargo installations remain managed by Cargo; update those with the corresponding `cargo install` command.
@@ -145,6 +139,10 @@ Editing preserves the ID, creation time, and view count. Omit tag options to kee
 ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust` are the same tag. Duplicates and leading `#` are also normalized. A `#word` inside the body is ordinary text. `inbox tags` uses the same colored `#tag` form as note lists. Only successful `show` output counts as a view, including output redirected to a file. Lists, searches, and reviews do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
 
 Every command reports its elapsed time on standard error. Note IDs, note rows, tag data, and other machine-readable results remain on standard output, so existing pipelines can continue to consume them independently.
+
+## Display configuration
+
+Set `INBOX_SHOW_ELAPSED=off` to hide command timings, or `INBOX_REVIEW_REASONS=off` to hide the explanatory line below each `review` candidate. Both settings default to `on` and accept `1/0`, `true/false`, `yes/no`, or `on/off` (case-insensitive).
 
 ## Command completion
 

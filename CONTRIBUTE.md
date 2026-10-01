@@ -32,7 +32,7 @@ cargo +1.89.0 check --all-targets --locked
 python3 scripts/check-version.py
 ```
 
-The supported local wrappers are `scripts/build.sh` and `scripts/install.sh` on macOS/Linux, with `scripts/build.ps1` and `scripts/install.ps1` on Windows. CI exercises both the build and no-rebuild installation paths. Keep their builds equivalent to `cargo build --release --locked`.
+The supported local wrappers are `scripts/build.sh` and `scripts/install.sh` on macOS/Linux, with `scripts/build.ps1` and `scripts/install.ps1` on Windows. `install-release.sh` and `install-release.ps1` are checksum-verifying bootstrap installers for the latest prebuilt release. CI exercises source, packaged, bootstrap, and no-rebuild installation paths. Keep source builds equivalent to `cargo build --release --locked`.
 
 Builds embed their UTC build time for `inbox info`. Set `SOURCE_DATE_EPOCH` to an unsigned Unix timestamp when a reproducible build needs stable metadata; otherwise the build script records the current time.
 

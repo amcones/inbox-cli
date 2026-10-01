@@ -18,6 +18,7 @@ mod terminal;
 
 fn main() -> ExitCode {
     let started = Instant::now();
+    let settings = Settings::from_env();
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let cli = match i18n::configure(&args).and_then(|_| cli::parse(args)) {
         Ok(cli) => cli,
@@ -26,31 +27,31 @@ fn main() -> ExitCode {
                 "inbox: {e}\n{}",
                 i18n::text("运行 inbox help 查看用法", "Run inbox help for usage")
             );
-            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
+            write_elapsed_if_enabled(started.elapsed(), settings.show_elapsed);
             return ExitCode::from(2);
         }
     };
-    match run(cli) {
+    match run(cli, &settings) {
         Ok(()) => {
-            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
+            write_elapsed_if_enabled(started.elapsed(), settings.show_elapsed);
             ExitCode::SUCCESS
         }
         Err(e)
             if e.downcast_ref::<io::Error>()
                 .is_some_and(|e| e.kind() == io::ErrorKind::BrokenPipe) =>
         {
-            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
+            write_elapsed_if_enabled(started.elapsed(), settings.show_elapsed);
             ExitCode::SUCCESS
         }
         Err(e) => {
             eprintln!("inbox: {e}");
-            let _ = write_elapsed(started.elapsed(), &terminal::Theme::stderr());
+            write_elapsed_if_enabled(started.elapsed(), settings.show_elapsed);
             ExitCode::FAILURE
         }
     }
 }
 
-fn run(cli: Cli) -> Result<()> {
+fn run(cli: Cli, settings: &Settings) -> Result<()> {
     let mut out = io::BufWriter::new(io::stdout().lock());
     let theme = terminal::Theme::stdout();
     let error_theme = terminal::Theme::stderr();
@@ -139,7 +140,7 @@ fn run(cli: Cli) -> Result<()> {
                 None => Vec::new(),
             };
             for item in &items {
-                write_review(&mut out, item, now, &theme)?;
+                write_review(&mut out, item, now, &theme, settings.review_reasons)?;
             }
             out.flush()?;
             write_result_count(items.len(), &error_theme)?;
@@ -453,29 +454,11 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 None => (false, 0, 0, 0, 0),
             };
-            write_info_header(&mut out, &theme)?;
-            writeln!(out)?;
-            writeln!(
-                out,
-                "{}",
-                inbox::message!("数据目录：{}", "Data directory: {}", display_root.display())
-            )?;
-            writeln!(
-                out,
-                "{}",
-                if initialized {
-                    i18n::text("存储格式：1", "Storage format: 1")
-                } else {
-                    i18n::text("存储：尚未初始化", "Storage: not initialized")
-                }
-            )?;
-            writeln!(
-                out,
-                "{}",
-                inbox::message!(
-                    "日期文件：{files}，灵感：{notes}，浏览：{views}，回收站：{trashed}",
-                    "Day files: {files}, notes: {notes}, views: {views}, trash: {trashed}"
-                )
+            write_info(
+                &mut out,
+                &theme,
+                &display_root,
+                (initialized, files, notes, views, trashed),
             )?;
         }
         Command::Doctor => {
@@ -575,8 +558,12 @@ fn write_review(
     item: &query::ReviewItem,
     now: jiff::Timestamp,
     theme: &terminal::Theme,
+    show_reason: bool,
 ) -> Result<()> {
     write_summary(out, &item.note, now, theme, None)?;
+    if !show_reason {
+        return Ok(());
+    }
     let age_seconds = (now.as_second() - item.note.timestamp.as_second()).max(0);
     let age_days = age_seconds / 86_400;
     let time_reason = if age_days <= 14 {
@@ -698,25 +685,36 @@ fn write_result_count(count: usize, theme: &terminal::Theme) -> Result<()> {
     Ok(())
 }
 
-fn write_info_header(out: &mut impl Write, theme: &terminal::Theme) -> Result<()> {
-    const ART: [&str; 12] = [
-        "         __________         ",
-        "      .-'          '-.      ",
-        "    .'    __________    '.    ",
-        "   /    /|          |\\    \\   ",
-        "  /    / |   ==     | \\    \\  ",
-        " /____/  |   ==     |  \\____\\ ",
-        "|    |   |__________|   |    |",
-        "|    |  /            \\  |    |",
-        "|    | /              \\ |    |",
-        "|    |/      >_        \\|    |",
-        "|    /__________________\\    |",
-        "|____________________________|",
-    ];
+fn write_info(
+    out: &mut impl Write,
+    theme: &terminal::Theme,
+    root: &std::path::Path,
+    stats: (bool, usize, usize, u64, usize),
+) -> Result<()> {
+    let (initialized, files, notes, views, trashed) = stats;
+    const ART: &str = r#"               ...:::.
+            ..:::.:**#**:.
+        ....:::::.:**#******:.
+    ....::..:::::.:**#***@@*#***:
+ ....:::::..:::::.:**@@@@@@@#*******:
+:::..:::::..:::.::@@@@@@@@@@*******#*:
+:::..:::::..::@@@@@@@@@@@@@@*******#*:
+:::..:::::@@@@@@@@@@@@@@@@@@*******#*:
+:::..::@@@@@@@@@@@@@@@@@@@@@.:.:***#*:
+:::..:.@@@@@@@@@@@@@@@@@@@@@.::..:.:*:
+**...:.@@@@@@@@@@@@@@@@@@@@@.::....@@@
+..::::.@@@@@@@@@@@@@@@@@@@@@.::.@@@@@@
+....@*:@@@@@@@@@@@@@@@@@@@@@.:::@@@@@@
+....:@@...:@@@@@@@@@@@@@@@@:::*@@@@@@@
+....@@@@......:@@@@@@@@@@.:@@@@@@@@@@@
+ ....::.*@:.......*@@@@@@@@@@@@@@@@@@
+    ....:@@@@:....:@@@@@@@@@@@@@@.
+        ....*:....:@@@@@@@@@@.
+            ......:@@@@@@@
+               ...:@@@"#;
     let epoch = env!("INBOX_BUILD_UNIX_EPOCH").parse::<i64>()?;
     let built_at = jiff::Timestamp::new(epoch, 0)?.to_string();
     let fields = [
-        ("", "inbox".to_owned()),
         (
             i18n::text("版本", "Version"),
             env!("CARGO_PKG_VERSION").to_owned(),
@@ -730,19 +728,60 @@ fn write_info_header(out: &mut impl Write, theme: &terminal::Theme) -> Result<()
             i18n::text("作者", "Author"),
             env!("CARGO_PKG_AUTHORS").to_owned(),
         ),
-    ];
-    for (index, line) in ART.iter().enumerate() {
-        theme.write(out, terminal::BLUE, line)?;
-        if let Some((label, value)) = fields.get(index) {
-            if label.is_empty() {
-                theme.write(out, terminal::BLUE, value)?;
+        (
+            i18n::text("数据目录", "Data directory"),
+            root.display().to_string(),
+        ),
+        (
+            i18n::text("存储", "Storage"),
+            if initialized {
+                i18n::text("格式 1", "format 1")
             } else {
-                theme.write(out, terminal::DIM, format_args!("{label}: "))?;
-                write!(out, "{value}")?;
+                i18n::text("尚未初始化", "not initialized")
+            }
+            .to_owned(),
+        ),
+        (i18n::text("日期文件", "Day files"), files.to_string()),
+        (i18n::text("灵感", "Notes"), notes.to_string()),
+        (i18n::text("浏览", "Views"), views.to_string()),
+        (i18n::text("回收站", "Trash"), trashed.to_string()),
+    ];
+    let art: Vec<_> = ART.lines().collect();
+    let art_width = art
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    for row in 0..art.len().max(fields.len() + 2) {
+        let line = art.get(row).copied().unwrap_or("");
+        write_info_art_line(out, theme, line)?;
+        write!(out, "{}  ", " ".repeat(art_width - line.chars().count()))?;
+        match row {
+            0 => theme.write(out, terminal::BLUE, "inbox")?,
+            1 => theme.write(out, terminal::DIM, "-----")?,
+            _ => {
+                if let Some((label, value)) = fields.get(row - 2) {
+                    theme.write(out, terminal::MATCH, label)?;
+                    write!(out, ": {value}")?;
+                }
             }
         }
         writeln!(out)?;
     }
+    Ok(())
+}
+
+fn write_info_art_line(out: &mut impl Write, theme: &terminal::Theme, line: &str) -> Result<()> {
+    let mut rest = line;
+    while let Some(index) = rest.find('@') {
+        theme.write(out, terminal::BLUE, &rest[..index])?;
+        let end = rest[index..]
+            .find(|character| character != '@')
+            .map_or(rest.len(), |offset| index + offset);
+        theme.write(out, terminal::WHITE, &rest[index..end])?;
+        rest = &rest[end..];
+    }
+    theme.write(out, terminal::BLUE, rest)?;
     Ok(())
 }
 
@@ -761,6 +800,38 @@ fn write_elapsed(duration: Duration, theme: &terminal::Theme) -> io::Result<()> 
         inbox::message!("耗时 {value}", "Elapsed {value}"),
     )?;
     writeln!(error)
+}
+
+fn write_elapsed_if_enabled(duration: Duration, enabled: bool) {
+    if enabled {
+        let _ = write_elapsed(duration, &terminal::Theme::stderr());
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Settings {
+    show_elapsed: bool,
+    review_reasons: bool,
+}
+
+impl Settings {
+    fn from_env() -> Self {
+        Self {
+            show_elapsed: boolean_env("INBOX_SHOW_ELAPSED", true),
+            review_reasons: boolean_env("INBOX_REVIEW_REASONS", true),
+        }
+    }
+}
+
+fn boolean_env(name: &str, default: bool) -> bool {
+    let Ok(value) = std::env::var(name) else {
+        return default;
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => default,
+    }
 }
 
 fn read_stdin_content(content: &mut String) -> Result<()> {

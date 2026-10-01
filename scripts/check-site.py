@@ -39,6 +39,7 @@ def fail(message: str) -> None:
 
 html = (SITE / "index.html").read_text(encoding="utf-8")
 script = (SITE / "script.js").read_text(encoding="utf-8")
+changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 parser = SiteParser()
 parser.feed(html)
 
@@ -60,7 +61,16 @@ for required in ("assets/inbox-icon.svg", "assets/favicon.svg", ".nojekyll"):
     if not path.is_file() or (path.suffix and path.stat().st_size == 0):
         fail(f"required artifact is missing or empty: {required}")
 
+release_headings = re.findall(
+    r"^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$", changelog, re.MULTILINE
+)
+if len(release_headings) < 4:
+    fail("CHANGELOG.md must keep at least four parseable release headings")
+if "raw.githubusercontent.com/amcones/inbox-cli/main/CHANGELOG.md" not in script:
+    fail("site must load version history from the canonical CHANGELOG.md")
+
 print(
     f"site check: {len(parser.local_refs)} local references, "
-    f"{len(parser.translation_keys)} translated strings, and {len(parser.ids)} ids are valid"
+    f"{len(parser.translation_keys)} translated strings, {len(parser.ids)} ids, "
+    f"and {len(release_headings)} changelog releases are valid"
 )

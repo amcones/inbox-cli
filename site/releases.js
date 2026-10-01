@@ -9,14 +9,16 @@ window.INBOX_RELEASES = [
         "Report elapsed time after every command on standard error, preserving standard output for scripts and pipelines.",
         "Replace all committed icon sizes with the latest direct Figma exports and refresh the website icon copies.",
         "Generate bilingual website release history from CHANGELOG.md at build time, removing the unreliable runtime fetch and its duplicate maintenance burden.",
-        "Add an accessible, responsive back-to-top control and language-specific documentation links to the introducing website."
+        "Add an accessible, responsive back-to-top control and language-specific documentation links to the introducing website.",
+        "Automatically validate and create the version tag after a prepared release is merged into main, then invoke the reusable release workflow so publication cannot be skipped by a missing manual tag."
       ],
       "zh": [
         "提高 inbox info 的 ASCII 图标分辨率，并让 inbox tags 使用与灵感列表一致的彩色 #tag 形式。",
         "每条命令执行后在标准错误中显示耗时，同时保持标准输出可用于脚本和管道。",
         "使用 Figma 最新直接导出替换仓库中的全部图标尺寸，并同步更新网站图标副本。",
         "构建时从 CHANGELOG.md 生成双语网站版本记录，移除不稳定的运行时请求，也无需维护第二份版本数据。",
-        "为产品主页新增支持无障碍和响应式布局的回到顶部按钮，并按页面语言链接对应的中英文文档。"
+        "为产品主页新增支持无障碍和响应式布局的回到顶部按钮，并按页面语言链接对应的中英文文档。",
+        "发布准备合并到 main 后自动校验并创建版本标签，再调用可复用发布工作流，避免因遗漏手动推送标签而跳过发布。"
       ]
     }
   },

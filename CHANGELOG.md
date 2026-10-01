@@ -9,6 +9,7 @@
 - Replace all committed icon sizes with the latest direct Figma exports and refresh the website icon copies. <!-- zh: 使用 Figma 最新直接导出替换仓库中的全部图标尺寸，并同步更新网站图标副本。 -->
 - Generate bilingual website release history from `CHANGELOG.md` at build time, removing the unreliable runtime fetch and its duplicate maintenance burden. <!-- zh: 构建时从 CHANGELOG.md 生成双语网站版本记录，移除不稳定的运行时请求，也无需维护第二份版本数据。 -->
 - Add an accessible, responsive back-to-top control and language-specific documentation links to the introducing website. <!-- zh: 为产品主页新增支持无障碍和响应式布局的回到顶部按钮，并按页面语言链接对应的中英文文档。 -->
+- Automatically validate and create the version tag after a prepared release is merged into `main`, then invoke the reusable release workflow so publication cannot be skipped by a missing manual tag. <!-- zh: 发布准备合并到 main 后自动校验并创建版本标签，再调用可复用发布工作流，避免因遗漏手动推送标签而跳过发布。 -->
 
 ## 0.6.0 — 2026-10-01
 

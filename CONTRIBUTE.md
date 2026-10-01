@@ -16,7 +16,7 @@ After each release merge, synchronize `main` back into `develop` before the next
 
 Both branch rulesets require a PR, resolved conversations, and the existing `CI gate` with the up-to-date requirement. Both block deletion and force pushes, have no bypass actors, and currently require zero approvals for solo maintenance. `main` permits only merge commits; `develop` permits squash and merge commits, with merge reserved for synchronization. Neither requires linear history. Rulesets select methods by target branch, so maintainers must select squash for ordinary topic PRs and merge for synchronization PRs.
 
-**The maintainer merges manually.** Stop after submitting the PR and reporting its checks. Do not merge, enable auto-merge, bypass reviews, or change branch protection. Do not create tags or publish releases without an explicit release request. Do not force-push shared history without authorization.
+**The maintainer merges manually.** Stop after submitting the PR and reporting its checks. Do not merge, enable auto-merge, bypass reviews, or change branch protection. A prepared release PR merged into `main` is explicit authorization for the workflow to tag and publish that version; do not push the tag manually unless recovering a failed automation at the maintainer's request. Do not force-push shared history without authorization.
 
 ## Build and check
 
@@ -29,6 +29,7 @@ cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 cargo +1.89.0 check --all-targets --locked
+python3 scripts/check-version.py
 ```
 
 The supported local wrappers are `scripts/build.sh` and `scripts/install.sh` on macOS/Linux, with `scripts/build.ps1` and `scripts/install.ps1` on Windows. CI exercises both the build and no-rebuild installation paths. Keep their builds equivalent to `cargo build --release --locked`.
@@ -75,9 +76,9 @@ The benchmark creates disposable libraries and includes process launch, operatio
 
 PRs targeting `main` or `develop` run a source-branch policy, formatting, Clippy, tests, release builds, and script checks on macOS ARM64/x86_64, Linux ARM64/x86_64, and Windows x86_64. A separate `Rust 1.89` job checks the MSRV. A PR targeting `main` must come from this repository's `develop`, not a fork with a same-named branch. Topic branches target `develop`; this repository's `main` is also allowed there for release synchronization. The policy reruns when a PR is retargeted. The platform jobs remain parallel for coverage, but the repository rulesets require only the final `CI gate` check; it fails unless the source policy, MSRV, and every platform job succeed. The PR workflow builds binaries but does not upload PR build artifacts.
 
-After the maintainer merges release preparation, an explicitly authorized `vMAJOR.MINOR.PATCH` tag triggers the release workflow. It verifies the Cargo version, changelog entry, and membership in `main`, then builds five native archives with SHA-256 files. Publication creates a draft, uploads all ten assets, then makes the release public. Read-only permissions are the default; only publication receives contents write access.
+After the maintainer merges release preparation into `main`, the auto-release workflow validates the version sources and creates the corresponding `vMAJOR.MINOR.PATCH` tag when the Cargo version changed. It then calls the release workflow directly, because tags pushed with the GitHub Actions token do not start another push-triggered workflow. The release workflow verifies the tag, Cargo version, changelog entry, and membership in `main`, then builds five native archives with SHA-256 files. Publication creates a draft, uploads all ten assets, then makes the release public. A manually pushed tag remains a supported fallback. Permissions are declared per job; only tag creation and publication receive contents write access.
 
-Release preparation must keep `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and both README installation examples consistent. A new feature PR alone is not authorization to tag or release.
+Release preparation must keep `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and both README installation examples consistent. `python3 scripts/check-version.py` checks these sources locally and in CI. A topic PR alone does not publish a release; merging the prepared `develop` release PR into `main` is the release action and automatically creates the tag.
 
 ## Documentation
 

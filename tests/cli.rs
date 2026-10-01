@@ -119,15 +119,18 @@ fn empty_inbox_does_not_create_files() {
 fn info_reports_location_health_and_counts_without_initializing_an_empty_store() {
     let inbox = Inbox::new();
     let empty = inbox.ok(&["info", "--lang", "en"]);
-    assert!(empty.contains("@@@@@@@@@@@@@@@@@@@@@@***+==+@@@@@@@@@@@@@@@@@@@@@@"));
-    assert!(empty.contains("@@@@@@@@@@@@@@@**********-       ...@@@@@@@@@@@@@@@"));
+    assert!(empty.contains("..:::.:**#**:."));
+    assert!(empty.contains("@@@@@@@@@@@@@@@@@@@@@"));
     assert!(empty.contains("Version: 0.6.2"));
     assert!(empty.contains("Built: "));
     assert!(empty.contains("License: MIT"));
     assert!(empty.contains("Author: James Amcones"));
     assert!(empty.contains(&format!("Data directory: {}", inbox.0.display())));
     assert!(empty.contains("Storage: not initialized"));
-    assert!(empty.contains("Day files: 0, notes: 0, views: 0, trash: 0"));
+    assert!(empty.contains("Day files: 0"));
+    assert!(empty.contains("Notes: 0"));
+    assert!(empty.contains("Views: 0"));
+    assert!(empty.contains("Trash: 0"));
     assert!(!inbox.0.exists());
 
     let active = inbox.ok(&["add", "active"]);
@@ -135,8 +138,11 @@ fn info_reports_location_health_and_counts_without_initializing_an_empty_store()
     let trashed = inbox.ok(&["add", "trashed"]);
     inbox.ok(&["delete", trashed.trim()]);
     let populated = inbox.ok(&["info", "--lang", "en"]);
-    assert!(populated.contains("Storage format: 1"));
-    assert!(populated.contains("Day files: 1, notes: 1, views: 1, trash: 1"));
+    assert!(populated.contains("Storage: format 1"));
+    assert!(populated.contains("Day files: 1"));
+    assert!(populated.contains("Notes: 1"));
+    assert!(populated.contains("Views: 1"));
+    assert!(populated.contains("Trash: 1"));
 }
 
 #[test]

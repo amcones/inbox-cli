@@ -9,6 +9,7 @@ pub const CYAN: &str = "36";
 pub const DIM: &str = "2";
 pub const MAGENTA: &str = "35";
 pub const MATCH: &str = "1;33";
+pub const WHITE: &str = "1;37";
 
 #[derive(Clone, Copy)]
 pub struct Theme {

@@ -16,7 +16,12 @@ website, release metadata, and future packaging can use a stable local copy.
 | `icon/inbox-64.svg` | `12:70` | App and launcher icon |
 | `icon/inbox-32.svg` | `12:101` | Compact interface icon |
 | `icon/inbox-24.svg` | `12:132` | Small interface icon |
+| `ascii/inbox-info-source.png` | User-provided raster reference | Source image for the compact two-tone `inbox info` ASCII mark |
 
 These are direct exports from Figma. Keep the node IDs and source link current
 when replacing an asset. Do not redraw or optimize an SVG in place; add the new
 Figma export so visual changes remain reviewable in Git history.
+
+The `inbox info` raster reference is converted to a terminal-sized ASCII mark
+in `src/main.rs`. Keep the raster alongside code changes so future conversions
+can be compared with the same source image.

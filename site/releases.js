@@ -6,11 +6,13 @@ window.INBOX_RELEASES = [
     "changes": {
       "en": [
         "Add checksum-verified bootstrap installers that detect the platform and download the latest prebuilt release from GitHub on macOS, Linux, and Windows.",
-        "Make elapsed-time output and review explanations independently configurable through INBOX_SHOW_ELAPSED and INBOX_REVIEW_REASONS."
+        "Make elapsed-time output and review explanations independently configurable through INBOX_SHOW_ELAPSED and INBOX_REVIEW_REASONS.",
+        "Replace the compact inbox info mark with the new high-resolution ASCII artwork."
       ],
       "zh": [
         "为 macOS、Linux 和 Windows 新增带校验的引导安装脚本，自动识别平台并从 GitHub 下载最新预编译版本。",
-        "通过 INBOX_SHOW_ELAPSED 和 INBOX_REVIEW_REASONS 分别配置是否显示命令耗时和 review 原因。"
+        "通过 INBOX_SHOW_ELAPSED 和 INBOX_REVIEW_REASONS 分别配置是否显示命令耗时和 review 原因。",
+        "使用新的高分辨率 ASCII 字符画替换 inbox info 中的紧凑图标。"
       ]
     }
   },

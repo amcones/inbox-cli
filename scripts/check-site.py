@@ -17,6 +17,7 @@ class SiteParser(HTMLParser):
         super().__init__()
         self.ids: list[str] = []
         self.local_refs: list[str] = []
+        self.localized_links: list[tuple[str, str]] = []
         self.translation_keys: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -27,6 +28,10 @@ class SiteParser(HTMLParser):
             self.translation_keys.add(values["data-i18n"])
         if values.get("data-i18n-aria"):
             self.translation_keys.add(values["data-i18n-aria"])
+        if values.get("data-href-en") and values.get("data-href-zh"):
+            self.localized_links.append(
+                (values["data-href-en"], values["data-href-zh"])
+            )
         for name in ("href", "src"):
             ref = values.get(name)
             if ref and not ref.startswith(("#", "http://", "https://", "mailto:")):
@@ -55,6 +60,11 @@ if duplicates:
 missing_files = sorted(ref for ref in parser.local_refs if not (SITE / ref).is_file())
 if missing_files:
     fail(f"missing local files: {', '.join(missing_files)}")
+
+if len(parser.localized_links) != 3:
+    fail(f"expected 3 language-specific documentation links, found {len(parser.localized_links)}")
+if any(english == chinese for english, chinese in parser.localized_links):
+    fail("language-specific documentation links must have distinct targets")
 
 for key in sorted(parser.translation_keys):
     count = len(re.findall(rf"\b{re.escape(key)}\s*:", script))

@@ -120,7 +120,8 @@ fn info_reports_location_health_and_counts_without_initializing_an_empty_store()
     let inbox = Inbox::new();
     let empty = inbox.ok(&["info", "--lang", "en"]);
     assert!(empty.contains("______"));
-    assert!(empty.contains("Version: 0.6.0"));
+    assert!(empty.contains("|____________________________|"));
+    assert!(empty.contains("Version: 0.6.1"));
     assert!(empty.contains("Built: "));
     assert!(empty.contains("License: MIT"));
     assert!(empty.contains("Author: James Amcones"));
@@ -157,7 +158,10 @@ fn lists_use_rough_time_and_report_count_while_show_keeps_full_time() {
     assert!(!stdout.contains("2026-09-28"));
     assert!(!stdout.contains("09:10:11"));
     assert!(!stdout.contains('\x1b'));
-    assert_eq!(stderr, "Showing 1 notes\n");
+    let mut status_lines = stderr.lines();
+    assert_eq!(status_lines.next(), Some("Showing 1 notes"));
+    assert!(status_lines.next().unwrap().starts_with("Elapsed "));
+    assert_eq!(status_lines.next(), None);
 
     let shown = inbox.ok(&["show", note.short_id(), "--no-track", "--lang", "en"]);
     assert!(shown.contains("2026-09-28T09:10:11.000000000+08:00"));
@@ -188,6 +192,31 @@ fn forced_color_styles_fields_and_highlights_all_search_matches() {
     assert!(stdout.contains("\x1b[1;33mRust\x1b[0m"));
     assert!(stdout.contains("\x1b[1;33mRUST\x1b[0m"));
     assert!(stdout.contains("\x1b[35m#rust\x1b[0m"));
+
+    let tags = inbox
+        .command()
+        .env_remove("NO_COLOR")
+        .env("TERM", "xterm-256color")
+        .env("CLICOLOR_FORCE", "1")
+        .args(["tags", "--lang", "en"])
+        .output()
+        .unwrap();
+    assert!(tags.status.success());
+    assert!(
+        String::from_utf8(tags.stdout)
+            .unwrap()
+            .contains("\x1b[35m#rust\x1b[0m\t1")
+    );
+}
+
+#[test]
+fn every_completed_command_reports_elapsed_time_on_stderr() {
+    let inbox = Inbox::new();
+    let output = inbox.run(&["help", "--lang", "en"]);
+    assert!(output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.starts_with("Elapsed "));
+    assert!(stderr.ends_with('\n'));
 }
 
 #[test]
@@ -277,7 +306,7 @@ fn add_show_and_tags_are_persisted_and_lists_do_not_count_views() {
     ]);
     assert_eq!(id.trim().len(), 8);
     assert!(inbox.ok(&[]).contains("记住这个想法"));
-    assert_eq!(inbox.ok(&["tags"]), "rust\t1\n产品\t1\n");
+    assert_eq!(inbox.ok(&["tags"]), "#rust\t1\n#产品\t1\n");
     let files = inbox.files();
     assert_eq!(files.len(), 1);
     let before = fs::read(&files[0]).unwrap();
@@ -310,7 +339,7 @@ fn tags_are_ascii_case_insensitive_and_stored_lowercase() {
             .count(),
         2
     );
-    assert_eq!(inbox.ok(&["tags"]), "a\t2\nb\t2\n");
+    assert_eq!(inbox.ok(&["tags"]), "#a\t2\n#b\t2\n");
     assert!(
         String::from_utf8(fs::read(&inbox.files()[0]).unwrap())
             .unwrap()
@@ -333,7 +362,7 @@ fn legacy_mixed_case_tags_are_read_case_insensitively() {
         .replace(r#""tags":["rust"]"#, r#""tags":["Rust","RUST"]"#);
     fs::write(path, old).unwrap();
 
-    assert_eq!(inbox.ok(&["tags"]), "rust\t1\n");
+    assert_eq!(inbox.ok(&["tags"]), "#rust\t1\n");
     assert!(inbox.ok(&["list", "-t", "RUST"]).contains("legacy"));
     assert!(inbox.ok(&["doctor"]).contains("1 条记录"));
 }
@@ -879,7 +908,7 @@ fn oversized_crlf_input_cannot_be_silently_truncated_by_normalization() {
 fn leading_hash_tags_normalize_consistently() {
     let inbox = Inbox::new();
     inbox.ok(&["add", "tagged", "-t", "##产品", "-t", "#产品"]);
-    assert_eq!(inbox.ok(&["tags"]), "产品\t1\n");
+    assert_eq!(inbox.ok(&["tags"]), "#产品\t1\n");
     assert!(inbox.ok(&["list", "-t", "##产品"]).contains("tagged"));
 }
 
@@ -1022,7 +1051,7 @@ fn deleting_middle_note_preserves_neighbors_exactly_and_cleans_views() {
     assert!(!log.contains(&b.meta.id));
     assert!(log.contains(&a.meta.id) && log.contains(&c.meta.id));
     assert!(!inbox.run(&["show", b.short_id()]).status.success());
-    assert_eq!(inbox.ok(&["tags"]), "keep\t2\n");
+    assert_eq!(inbox.ok(&["tags"]), "#keep\t2\n");
     assert_eq!(inbox.ok(&["list", "--sort", "priority"]).lines().count(), 2);
     assert!(inbox.ok(&["doctor"]).contains("2 条记录，2 次浏览"));
     assert!(!inbox.0.join(".inbox/delete-pending").exists());

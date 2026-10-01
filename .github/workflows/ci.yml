@@ -88,6 +88,9 @@ jobs:
       - name: Run tests
         run: cargo test --locked
 
+      - name: Check release version consistency
+        run: python3 scripts/check-version.py
+
       - name: Validate introducing site
         run: python3 scripts/check-site.py
 

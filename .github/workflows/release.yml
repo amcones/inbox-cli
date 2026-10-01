@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*"
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   actions: read
@@ -17,15 +26,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
       - name: Validate tag, version, changelog, and branch
         run: |
-          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Release tag must use vMAJOR.MINOR.PATCH" >&2
             exit 1
           fi
+          python3 scripts/check-version.py
           version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "inbox") | .version')"
-          test "$GITHUB_REF_NAME" = "v$version"
-          grep -F "## $version " CHANGELOG.md
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$GITHUB_SHA"
           git fetch origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
@@ -51,6 +62,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -83,6 +96,8 @@ jobs:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
@@ -117,13 +132,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
       - name: Prepare release notes
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
           awk -v heading="## $version " '
             index($0, heading) == 1 { found = 1; next }
             found && /^## / { exit }
@@ -135,6 +152,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 10
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$GITHUB_REF_NAME" --notes-file release-notes.md
-          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" dist/*
-          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$RELEASE_TAG" --notes-file release-notes.md
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" dist/*
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

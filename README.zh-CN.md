@@ -81,7 +81,7 @@ PowerShell 安装脚本默认安装到 `%LOCALAPPDATA%\Programs\inbox`，会持�
 使用 Rust 1.89 或更新版本直接安装已发布源码：
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.0 --locked
 ```
 
 ## 更新
@@ -92,7 +92,7 @@ cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.1 --lo
 
 ```bash
 inbox-update                    # 更新到最新版
-inbox-update --version v0.5.1  # 更新到指定版本
+inbox-update --version v0.6.0  # 更新到指定版本
 ```
 
 如果 `inbox` 不在 `PATH` 中，请用 `--bin-dir` 指定其目录。
@@ -101,7 +101,7 @@ inbox-update --version v0.5.1  # 更新到指定版本
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.5.1
+inbox-update.ps1 -Version v0.6.0
 ```
 
 如果 `inbox.exe` 不在 `PATH` 中，请使用 `-BinDir`。通过 Cargo 安装的版本仍由 Cargo 管理，请使用对应的 `cargo install` 命令更新。
@@ -118,6 +118,8 @@ inbox list --sort priority          # 近期或经常查看的灵感
 inbox review                        # 回顾 5 条优先候选并显示原因
 inbox review -n 3                   # 将候选限制为 3 条
 ```
+
+列表、搜索、回顾和回收站使用粗略相对时间，并显示结果总数；`inbox show <ID>` 仍提供完整时间。在终端中，时间、ID、标签和搜索匹配文本使用不同颜色；重定向时输出保持纯文本。总数写入标准错误，因此对灵感行使用管道的脚本不受影响。设置 [`NO_COLOR`](https://no-color.org/) 可明确关闭颜色。
 
 新增后会输出短 ID。将下面的 ID 替换为实际值：
 
@@ -136,7 +138,7 @@ inbox edit a83f912b --clear-tags
 | 匹配任意一个标签 | 加上 `--any` |
 | 搜索与筛选组合 | `inbox search '阅读' -t 产品 --sort priority -n 5` |
 | 查看标签及数量 | `inbox tags` |
-| 查看版本、数据目录和库统计 | `inbox info` |
+| 查看构建信息、数据目录和库统计 | `inbox info` |
 | 查看但不计浏览次数 | `inbox show <ID> --no-track` |
 | 完整用法 | `inbox help` |
 
@@ -189,7 +191,7 @@ inbox help --lang en
 
 语言优先级为 `--lang` > `INBOX_LANG` > 系统语言，支持 `auto`、`zh`、`en`；其他系统语言回退到英文。正文与标签不会翻译。从 v0.3.0 开始使用 `add` 代替旧的 `-m` 记录选项。如果正文以连字符开头，请先写选项，再用 `--` 分隔，例如 `inbox add -- '--一个想法'`。
 
-运行 `inbox info` 可查看当前程序版本、解析后的数据目录、存储状态，以及日期文件、活动灵感、浏览和回收站数量。它会执行与 `doctor` 相同的数据校验，并输出简洁的运行摘要。
+运行 `inbox info` 可查看 ASCII 应用图标、当前程序版本、UTC 构建时间、开源协议、作者、解析后的数据目录、存储状态，以及日期文件、活动灵感、浏览和回收站数量。它会执行与 `doctor` 相同的数据校验，并输出简洁的运行摘要。
 
 发生数据损坏时先停止写入、备份，然后运行 `inbox doctor` 检查正文、浏览日志和回收站。它不会猜测如何修复损坏内容。手动编辑 Markdown 时应保留元数据与记录标记，避免并发写入。详见[存储与恢复说明](docs/FORMAT.md)。
 

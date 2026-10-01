@@ -81,7 +81,7 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.0 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.1 --locked
 ```
 
 ## Update
@@ -92,7 +92,7 @@ Release and source-script installations include an updater that verifies the arc
 
 ```bash
 inbox-update                    # latest release
-inbox-update --version v0.6.0  # a specific release
+inbox-update --version v0.6.1  # a specific release
 ```
 
 If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
@@ -101,7 +101,7 @@ If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.6.0
+inbox-update.ps1 -Version v0.6.1
 ```
 
 Use `-BinDir` when `inbox.exe` is outside `PATH`. Cargo installations remain managed by Cargo; update those with the corresponding `cargo install` command.
@@ -142,7 +142,9 @@ Editing preserves the ID, creation time, and view count. Omit tag options to kee
 | Read without counting a view | `inbox show <ID> --no-track` |
 | Full usage | `inbox help` |
 
-ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust` are the same tag. Duplicates and leading `#` are also normalized. A `#word` inside the body is ordinary text. Only successful `show` output counts as a view, including output redirected to a file. Lists, searches, and reviews do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
+ASCII letters in tags are normalized to lowercase, so `Rust`, `RUST`, and `rust` are the same tag. Duplicates and leading `#` are also normalized. A `#word` inside the body is ordinary text. `inbox tags` uses the same colored `#tag` form as note lists. Only successful `show` output counts as a view, including output redirected to a file. Lists, searches, and reviews do not count. IDs can be unique prefixes of at least four characters. Each note supports up to 1 MiB of text and 64 tags (128 bytes each).
+
+Every command reports its elapsed time on standard error. Note IDs, note rows, tag data, and other machine-readable results remain on standard output, so existing pipelines can continue to consume them independently.
 
 ## Command completion
 

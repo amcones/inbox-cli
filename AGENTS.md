@@ -8,7 +8,7 @@
 - Inspect the working tree and branch state before switching or updating. Preserve unrelated work and avoid unauthorized history rewrites.
 - The user manually merges every PR. Do not merge, enable auto-merge, bypass approval, or modify repository rules to unblock yourself.
 - Finish by linking the PR, describing validation and any remaining failures, and leaving the PR for the user to merge.
-- Create tags or publish releases only when explicitly requested, after the user has merged the release preparation.
+- Do not create version tags manually after a release PR: merging prepared `develop` into `main` authorizes the auto-release workflow to validate the version, create the tag, and publish the release. Create or repair tags manually only when the user explicitly requests recovery.
 
 ## Product constraints
 

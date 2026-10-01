@@ -12,7 +12,7 @@ const copy = {
     workflowEyebrow: "ONE SIMPLE LOOP", workflowTitle: "Capture now.<br>Shape later.", workflowLede: "Each day is a readable Markdown file. inbox adds the speed, IDs, search, and recovery around it while the words remain yours.", formatLink: "See the storage format",
     step1Title: "Add", step1Text: "Put the thought down before context switching.", step2Title: "Find", step2Text: "Search words, tags, dates, or recent IDs.", step3Title: "Review", step3Text: "Bring recent and often-viewed ideas back.", step4Title: "Keep", step4Text: "Edit, restore, back up, and verify confidently.",
     localEyebrow: "LOCAL BY DEFAULT", localTitle: "Your notes stay ordinary.", localText: "Open them with any editor. Sync them with any tool. Back them up like any other folder. inbox stores notes by day and keeps the format human-readable.", localPoint1: "Readable daily Markdown", localPoint2: "No account or proprietary database", localPoint3: "Built-in integrity checks and backup verification",
-    versionsEyebrow: "WHAT'S NEW", versionsTitle: "Built one useful<br>step at a time.", versionsLede: "Recent releases are read directly from the project's changelog, so this page always follows the source of truth.", fullChangelog: "Read the full changelog", versionsLoading: "Loading recent releases…", versionsUnavailable: "Release history is temporarily unavailable. Open the full changelog to read every version.",
+    versionsEyebrow: "WHAT'S NEW", versionsTitle: "Built one useful<br>step at a time.", versionsLede: "Recent releases are generated from the project's changelog, so this page always follows the source of truth.", fullChangelog: "Read the full changelog", versionsLoading: "Loading recent releases…", versionsUnavailable: "Release history is temporarily unavailable. Open the full changelog to read every version.",
     installEyebrow: "START IN MINUTES", installTitle: "One small binary.<br>Three desktop platforms.", installHint: "Download the matching archive from GitHub Releases, extract it, and place inbox on your PATH.", copy: "Copy", copied: "Copied", copyLabel: "Copy command", allDownloads: "All downloads", installGuide: "Installation guide",
     closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "Make room for the next thought.", viewGithub: "View on GitHub", footer: "Open source under the MIT License.", backToTop: "Back to top"
   },
@@ -29,7 +29,7 @@ const copy = {
     workflowEyebrow: "一个简单循环", workflowTitle: "现在捕捉，<br>以后打磨。", workflowLede: "每天的内容都是一个可读的 Markdown 文件。inbox 在此基础上提供速度、ID、搜索与恢复能力，文字始终属于你。", formatLink: "查看存储格式",
     step1Title: "记录", step1Text: "在切换上下文前先把想法留下。", step2Title: "查找", step2Text: "按文字、标签、日期或最近 ID 查找。", step3Title: "回顾", step3Text: "让近期和常看的想法重新出现。", step4Title: "保管", step4Text: "编辑、恢复、备份和验证都有保障。",
     localEyebrow: "默认保存在本地", localTitle: "你的笔记依旧普通。", localText: "可以用任何编辑器打开，用任何工具同步，像普通文件夹一样备份。inbox 按日期存放灵感，并保持格式清晰可读。", localPoint1: "按天组织的可读 Markdown", localPoint2: "没有账号和专有数据库", localPoint3: "内置完整性检查和只读备份验证",
-    versionsEyebrow: "版本记录", versionsTitle: "每次更新，<br>解决一个实际问题。", versionsLede: "近期版本直接读取项目的更新记录，因此网站始终与唯一的数据源保持一致。", fullChangelog: "查看完整更新记录", versionsLoading: "正在读取近期版本…", versionsUnavailable: "暂时无法读取版本记录，请打开完整更新记录查看所有版本。",
+    versionsEyebrow: "版本记录", versionsTitle: "每次更新，<br>解决一个实际问题。", versionsLede: "近期版本由项目更新记录自动生成，因此网站始终与唯一的数据源保持一致。", fullChangelog: "查看完整更新记录", versionsLoading: "正在读取近期版本…", versionsUnavailable: "暂时无法读取版本记录，请打开完整更新记录查看所有版本。",
     installEyebrow: "几分钟即可开始", installTitle: "一个小巧二进制，<br>覆盖三个桌面平台。", installHint: "从 GitHub Releases 下载对应压缩包，解压后将 inbox 放入 PATH。", copy: "复制", copied: "已复制", copyLabel: "复制命令", allDownloads: "全部下载", installGuide: "安装指南",
     closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "为下一个想法，留一个位置。", viewGithub: "在 GitHub 查看", footer: "以 MIT 许可证开源。", backToTop: "回到顶部"
   }
@@ -53,6 +53,9 @@ function applyLanguage(nextLanguage) {
   });
   document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
     element.setAttribute("aria-label", copy[language][element.dataset.i18nAria]);
+  });
+  document.querySelectorAll("[data-href-en][data-href-zh]").forEach((element) => {
+    element.href = language === "zh" ? element.dataset.hrefZh : element.dataset.hrefEn;
   });
   const toggle = document.querySelector(".language-toggle");
   toggle.setAttribute("aria-pressed", String(language === "zh"));

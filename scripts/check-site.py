@@ -4,6 +4,7 @@
 from html.parser import HTMLParser
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
@@ -40,6 +41,10 @@ def fail(message: str) -> None:
 html = (SITE / "index.html").read_text(encoding="utf-8")
 script = (SITE / "script.js").read_text(encoding="utf-8")
 changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+subprocess.run(
+    [sys.executable, str(ROOT / "scripts" / "build-site-releases.py"), "--check"],
+    check=True,
+)
 parser = SiteParser()
 parser.feed(html)
 
@@ -56,7 +61,7 @@ for key in sorted(parser.translation_keys):
     if count != 2:
         fail(f"translation key {key!r} occurs {count} times; expected English and Chinese")
 
-for required in ("assets/inbox-icon.svg", "assets/favicon.svg", ".nojekyll"):
+for required in ("assets/inbox-icon.svg", "assets/favicon.svg", "releases.js", ".nojekyll"):
     path = SITE / required
     if not path.is_file() or (path.suffix and path.stat().st_size == 0):
         fail(f"required artifact is missing or empty: {required}")
@@ -66,8 +71,8 @@ release_headings = re.findall(
 )
 if len(release_headings) < 4:
     fail("CHANGELOG.md must keep at least four parseable release headings")
-if "raw.githubusercontent.com/amcones/inbox-cli/main/CHANGELOG.md" not in script:
-    fail("site must load version history from the canonical CHANGELOG.md")
+if "window.INBOX_RELEASES" not in (SITE / "releases.js").read_text(encoding="utf-8"):
+    fail("site release history is missing")
 
 print(
     f"site check: {len(parser.local_refs)} local references, "

@@ -81,7 +81,7 @@ The PowerShell installer defaults to `%LOCALAPPDATA%\Programs\inbox`, persists t
 With Rust 1.89 or newer, install the published source revision directly:
 
 ```bash
-cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.5.1 --locked
+cargo install --git ssh://git@github.com/amcones/inbox-cli.git --tag v0.6.0 --locked
 ```
 
 ## Update
@@ -92,7 +92,7 @@ Release and source-script installations include an updater that verifies the arc
 
 ```bash
 inbox-update                    # latest release
-inbox-update --version v0.5.1  # a specific release
+inbox-update --version v0.6.0  # a specific release
 ```
 
 If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
@@ -101,7 +101,7 @@ If `inbox` is outside `PATH`, pass its directory with `--bin-dir`.
 
 ```powershell
 inbox-update.ps1
-inbox-update.ps1 -Version v0.5.1
+inbox-update.ps1 -Version v0.6.0
 ```
 
 Use `-BinDir` when `inbox.exe` is outside `PATH`. Cargo installations remain managed by Cargo; update those with the corresponding `cargo install` command.
@@ -118,6 +118,8 @@ inbox list --sort priority          # Recent and frequently viewed ideas
 inbox review                        # Five priority candidates with reasons
 inbox review -n 3                   # Limit the review to three candidates
 ```
+
+List, search, review, and trash views use compact relative times and report the result count. Full timestamps remain available in `inbox show <ID>`. On a terminal, times, IDs, tags, and search matches use distinct colors; redirected output stays plain, and the count is written to standard error so pipelines over note rows keep working. Set [`NO_COLOR`](https://no-color.org/) to disable color explicitly.
 
 `add` prints a short ID. Use that ID in the following examples:
 
@@ -136,7 +138,7 @@ Editing preserves the ID, creation time, and view count. Omit tag options to kee
 | Match any supplied tag | Add `--any` |
 | Search and filter together | `inbox search 'reading' -t product --sort priority -n 5` |
 | See tags and counts | `inbox tags` |
-| See version, data path, and library counts | `inbox info` |
+| See build identity, data path, and library counts | `inbox info` |
 | Read without counting a view | `inbox show <ID> --no-track` |
 | Full usage | `inbox help` |
 
@@ -189,7 +191,7 @@ inbox help --lang zh
 
 Language precedence is `--lang` > `INBOX_LANG` > system language. Choose `auto`, `en`, or `zh`; unsupported system languages fall back to English. Body text and tags are never translated. Since v0.3.0, use `add` instead of the old `-m` capture option. For body text starting with a dash, put options first and use `--`, for example `inbox add -- '--an idea'`.
 
-Run `inbox info` to see the installed version, resolved data directory, storage state, and counts for day files, active notes, views, and trash. It validates the same library data as `doctor` while producing a concise operational summary.
+Run `inbox info` to see the ASCII application mark, installed version, UTC build time, license, author, resolved data directory, storage state, and counts for day files, active notes, views, and trash. It validates the same library data as `doctor` while producing a concise operational summary.
 
 If a command reports damaged data, stop writing, make a backup, and run `inbox doctor`. It checks notes, view history, and trash; it does not guess how to repair corrupted content. For manual Markdown edits, preserve metadata and record markers and avoid concurrent writes. See the [storage and recovery guide](docs/FORMAT.md).
 

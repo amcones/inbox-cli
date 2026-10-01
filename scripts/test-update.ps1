@@ -3,7 +3,7 @@ $ProjectDir = Split-Path -Parent $PSScriptRoot
 $TestDir = Join-Path ([IO.Path]::GetTempPath()) ("inbox-update-test-" + [guid]::NewGuid())
 try {
     $Asset = "inbox-windows-x86_64"
-    $ReleaseDir = Join-Path $TestDir "releases\download\v0.5.1"
+    $ReleaseDir = Join-Path $TestDir "releases\download\v0.6.0"
     $PackageParent = Join-Path $TestDir "package"
     $PackageDir = Join-Path $PackageParent $Asset
     $BinDir = Join-Path $TestDir "bin"
@@ -20,7 +20,7 @@ try {
     $CorrectChecksum = Get-Content "$Archive.sha256" -Raw
     "$('0' * 64)  $Asset.zip" | Set-Content -NoNewline "$Archive.sha256"
     try {
-        & (Join-Path $PSScriptRoot "update.ps1") -Version v0.5.1 -BinDir $BinDir -ReleaseBaseUrl (Join-Path $TestDir "releases")
+        & (Join-Path $PSScriptRoot "update.ps1") -Version v0.6.0 -BinDir $BinDir -ReleaseBaseUrl (Join-Path $TestDir "releases")
         throw "updater accepted a damaged checksum"
     } catch {
         if ($_.Exception.Message -eq "updater accepted a damaged checksum") { throw }
@@ -28,8 +28,8 @@ try {
     if ((Get-Item (Join-Path $BinDir "inbox.exe")).Length -ne 0) { throw "failed verification changed the installed binary" }
     $CorrectChecksum | Set-Content -NoNewline "$Archive.sha256"
 
-    & (Join-Path $PSScriptRoot "update.ps1") -Version v0.5.1 -BinDir $BinDir -ReleaseBaseUrl (Join-Path $TestDir "releases")
-    if ((& (Join-Path $BinDir "inbox.exe") --version) -ne "inbox 0.5.1") { throw "binary was not updated" }
+    & (Join-Path $PSScriptRoot "update.ps1") -Version v0.6.0 -BinDir $BinDir -ReleaseBaseUrl (Join-Path $TestDir "releases")
+    if ((& (Join-Path $BinDir "inbox.exe") --version) -ne "inbox 0.6.0") { throw "binary was not updated" }
     if ((Get-FileHash (Join-Path $BinDir "inbox-update.ps1")).Hash -ne (Get-FileHash (Join-Path $PSScriptRoot "update.ps1")).Hash) { throw "updater was not refreshed" }
     if ((Get-FileHash (Join-Path $BinDir "inbox-completion.ps1")).Hash -ne (Get-FileHash (Join-Path $PSScriptRoot "completion.powershell")).Hash) { throw "completion was not refreshed" }
     Write-Output "Windows updater test passed"

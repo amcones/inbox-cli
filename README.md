@@ -18,7 +18,7 @@ inbox is a small Rust CLI that keeps your notes in local Markdown files, grouped
 
 The installer detects the current platform, downloads the latest archive from [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest), verifies its SHA-256 checksum, and configures `PATH` and completion.
 
-#### macOS
+No Rust toolchain is needed. Run the command in your terminal (PowerShell on Windows), then open a new terminal to use `inbox` and completion. macOS/Linux support ARM64 and x86_64; Windows currently supports x86_64.
 
 | Platform | Archive |
 |---|---|
@@ -28,8 +28,10 @@ The installer detects the current platform, downloads the latest archive from [G
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
+#### macOS
+
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.sh | bash
+curl -fsSL https://amcones.cn/inbox-cli/install.sh | bash
 ```
 
 #### Linux
@@ -39,7 +41,7 @@ Use the same command as macOS; ARM64 and x86_64 are detected automatically.
 #### Windows
 
 ```powershell
-Invoke-RestMethod https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.ps1 | Invoke-Expression
+irm https://amcones.cn/inbox-cli/install.ps1 | iex
 ```
 
 ### Build and install from source

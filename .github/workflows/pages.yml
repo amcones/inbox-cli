@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - site/**
+      - scripts/install-release.*
+      - scripts/build-site*.py
+      - scripts/check-site.py
+      - CHANGELOG.md
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -33,12 +37,14 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      - name: Build release history from changelog
-        run: python3 scripts/build-site-releases.py
+      - name: Validate and build site
+        run: |
+          python3 scripts/check-site.py
+          python3 scripts/build-site.py
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: dist/site
 
       - name: Deploy to GitHub Pages
         id: deployment

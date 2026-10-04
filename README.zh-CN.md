@@ -18,7 +18,7 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 
 安装脚本会检测当前平台，自动从 [GitHub Releases](https://github.com/amcones/inbox-cli/releases/latest) 下载最新压缩包、校验 SHA-256，并配置 `PATH` 和命令补全。
 
-#### macOS
+无需安装 Rust。在终端中执行命令（Windows 使用 PowerShell），完成后打开新终端即可使用 `inbox` 和补全。macOS/Linux 支持 ARM64 和 x86_64，Windows 目前支持 x86_64。
 
 | 平台 | 压缩包 |
 |---|---|
@@ -28,8 +28,10 @@ inbox 是 Rust 编写的轻量命令行应用，将灵感按天保存在本地 M
 | Linux x86_64 | `inbox-linux-x86_64.tar.gz` |
 | Windows x86_64 | `inbox-windows-x86_64.zip` |
 
+#### macOS
+
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.sh | bash
+curl -fsSL https://amcones.cn/inbox-cli/install.sh | bash
 ```
 
 #### Linux
@@ -39,7 +41,7 @@ curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/amcones/
 #### Windows
 
 ```powershell
-Invoke-RestMethod https://raw.githubusercontent.com/amcones/inbox-cli/main/scripts/install-release.ps1 | Invoke-Expression
+irm https://amcones.cn/inbox-cli/install.ps1 | iex
 ```
 
 ### 从源码编译安装

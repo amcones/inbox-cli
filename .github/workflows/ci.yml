@@ -92,7 +92,9 @@ jobs:
         run: python3 scripts/check-version.py
 
       - name: Validate introducing site
-        run: python3 scripts/check-site.py
+        run: |
+          python3 scripts/check-site.py
+          python3 scripts/build-site.py
 
   msrv:
     name: Rust 1.89

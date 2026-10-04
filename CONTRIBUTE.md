@@ -91,9 +91,15 @@ The dependency-free introducing site lives in `site/`. Run
 entries in `CHANGELOG.md`; their inline `zh` comments are the Chinese source for
 the generated website cards. Run `python3 scripts/check-site.py` after changing
 the site's HTML, CSS, JavaScript, generated release data, or assets, then preview
-both desktop and mobile widths. A push to `main` that
-changes the site deploys it through the GitHub Pages workflow; ordinary topic
-branches do not deploy.
+both desktop and mobile widths. Build the deployment with
+`python3 scripts/build-site.py` and preview it using
+`python3 -m http.server 8000 --directory dist/site`. The build copies
+`scripts/install-release.sh` and `.ps1` to `dist/site/install.sh` and
+`install.ps1`, providing the short installation URLs without maintaining
+duplicate scripts. Edit the originals in `scripts/` only.
+A push to `main` that changes the site, bootstrap installers, site build/check
+scripts, or changelog deploys through GitHub Pages; ordinary topic branches
+do not deploy. The short URLs become available after that deployment.
 
 Original application icon exports live in `art/icon/`. Their Figma source,
 node IDs, export date, and intended sizes are recorded in `art/README.md`.

@@ -201,11 +201,12 @@
             <button class="platform-tab" type="button" role="tab" aria-selected="false" data-platform="linux">Linux</button>
             <button class="platform-tab" type="button" role="tab" aria-selected="false" data-platform="windows">Windows</button>
           </div>
+          <p id="install-shell" aria-live="polite">Terminal · macOS / Linux · ARM64 &amp; x86_64</p>
           <div class="install-command">
-            <code id="install-command">tar -xzf inbox-macos-aarch64.tar.gz</code>
+            <code id="install-command">curl -fsSL https://amcones.cn/inbox-cli/install.sh | bash</code>
             <button class="copy-button" type="button" data-i18n-aria="copyLabel" aria-label="Copy command"><span data-i18n="copy">Copy</span></button>
           </div>
-          <p data-i18n="installHint">Download the matching archive from GitHub Releases, extract it, and place inbox on your PATH.</p>
+          <p data-i18n="installHint">Installs the latest GitHub release, verifies SHA-256, and sets up PATH and completion. No Rust required. Open a new terminal when finished.</p>
           <div class="install-actions">
             <a class="button button-light" href="https://github.com/amcones/inbox-cli/releases/latest" data-i18n="allDownloads">All downloads</a>
             <a class="text-link light-link" href="https://github.com/amcones/inbox-cli/blob/main/README.md#install" data-href-en="https://github.com/amcones/inbox-cli/blob/main/README.md#install" data-href-zh="https://github.com/amcones/inbox-cli/blob/main/README.zh-CN.md#安装"><span data-i18n="installGuide">Installation guide</span> <span aria-hidden="true">↗</span></a>

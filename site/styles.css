@@ -288,12 +288,12 @@ h3 { margin: 0 0 10px; font-size: 23px; line-height: 1.2; letter-spacing: -0.025
 .version-status { grid-column: 1 / -1; margin: 0; padding: 40px; color: var(--muted); background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm); text-align: center; }
 
 .install { padding: 112px 0 130px; display: grid; grid-template-columns: .8fr 1.2fr; gap: 80px; align-items: center; }
-.install-panel { padding: 34px; color: var(--white); background: var(--navy); border-radius: var(--radius); box-shadow: var(--shadow); }
+.install-panel { min-width: 0; padding: 34px; color: var(--white); background: var(--navy); border-radius: var(--radius); box-shadow: var(--shadow); }
 .platforms { display: flex; gap: 8px; margin-bottom: 26px; }
 .platform-tab { padding: 7px 14px; color: #91a4c5; background: transparent; border: 1px solid transparent; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 700; }
 .platform-tab.active { color: var(--white); background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,.1); }
 .install-command { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 70px; padding: 15px 18px; background: #081b41; border: 1px solid rgba(255,255,255,.08); border-radius: 13px; }
-.install-command code { overflow-x: auto; color: #dce8ff; white-space: nowrap; font: 500 12px/1.5 ui-monospace, monospace; }
+.install-command code { min-width: 0; overflow-wrap: anywhere; color: #dce8ff; white-space: normal; font: 500 12px/1.5 ui-monospace, monospace; }
 .copy-button { flex: 0 0 auto; padding: 6px 11px; color: #9eb7df; background: transparent; border: 1px solid #354d75; border-radius: 8px; cursor: pointer; font-size: 11px; }
 .install-panel > p { color: #98aace; font-size: 13px; }
 .install-actions { margin-top: 26px; }

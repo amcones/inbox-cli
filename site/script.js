@@ -13,7 +13,7 @@ const copy = {
     step1Title: "Add", step1Text: "Put the thought down before context switching.", step2Title: "Find", step2Text: "Search words, tags, dates, or recent IDs.", step3Title: "Review", step3Text: "Bring recent and often-viewed ideas back.", step4Title: "Keep", step4Text: "Edit, restore, back up, and verify confidently.",
     localEyebrow: "LOCAL BY DEFAULT", localTitle: "Your notes stay ordinary.", localText: "Open them with any editor. Sync them with any tool. Back them up like any other folder. inbox stores notes by day and keeps the format human-readable.", localPoint1: "Readable daily Markdown", localPoint2: "No account or proprietary database", localPoint3: "Built-in integrity checks and backup verification",
     versionsEyebrow: "WHAT'S NEW", versionsTitle: "Built one useful<br>step at a time.", versionsLede: "Recent releases are generated from the project's changelog, so this page always follows the source of truth.", fullChangelog: "Read the full changelog", versionsLoading: "Loading recent releases…", versionsUnavailable: "Release history is temporarily unavailable. Open the full changelog to read every version.",
-    installEyebrow: "START IN MINUTES", installTitle: "One small binary.<br>Three desktop platforms.", installHint: "Download the matching archive from GitHub Releases, extract it, and place inbox on your PATH.", copy: "Copy", copied: "Copied", copyLabel: "Copy command", allDownloads: "All downloads", installGuide: "Installation guide",
+    installEyebrow: "START IN MINUTES", installTitle: "One small binary.<br>Three desktop platforms.", installHint: "Installs the latest GitHub release, verifies SHA-256, and sets up PATH and completion. No Rust required. Open a new terminal when finished.", installUnix: "Terminal · macOS / Linux · ARM64 & x86_64", installWindows: "PowerShell · Windows x86_64", copy: "Copy", copied: "Copied", copyLabel: "Copy command", allDownloads: "All downloads", installGuide: "Installation guide",
     closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "Make room for the next thought.", viewGithub: "View on GitHub", footer: "Open source under the MIT License.", backToTop: "Back to top"
   },
   zh: {
@@ -30,17 +30,18 @@ const copy = {
     step1Title: "记录", step1Text: "在切换上下文前先把想法留下。", step2Title: "查找", step2Text: "按文字、标签、日期或最近 ID 查找。", step3Title: "回顾", step3Text: "让近期和常看的想法重新出现。", step4Title: "保管", step4Text: "编辑、恢复、备份和验证都有保障。",
     localEyebrow: "默认保存在本地", localTitle: "你的笔记依旧普通。", localText: "可以用任何编辑器打开，用任何工具同步，像普通文件夹一样备份。inbox 按日期存放灵感，并保持格式清晰可读。", localPoint1: "按天组织的可读 Markdown", localPoint2: "没有账号和专有数据库", localPoint3: "内置完整性检查和只读备份验证",
     versionsEyebrow: "版本记录", versionsTitle: "每次更新，<br>解决一个实际问题。", versionsLede: "近期版本由项目更新记录自动生成，因此网站始终与唯一的数据源保持一致。", fullChangelog: "查看完整更新记录", versionsLoading: "正在读取近期版本…", versionsUnavailable: "暂时无法读取版本记录，请打开完整更新记录查看所有版本。",
-    installEyebrow: "几分钟即可开始", installTitle: "一个小巧二进制，<br>覆盖三个桌面平台。", installHint: "从 GitHub Releases 下载对应压缩包，解压后将 inbox 放入 PATH。", copy: "复制", copied: "已复制", copyLabel: "复制命令", allDownloads: "全部下载", installGuide: "安装指南",
+    installEyebrow: "几分钟即可开始", installTitle: "一个小巧二进制，<br>覆盖三个桌面平台。", installHint: "自动安装 GitHub 最新版，校验 SHA-256，配置 PATH 和补全，无需 Rust。完成后请打开新终端。", installUnix: "终端 · macOS / Linux · ARM64 和 x86_64", installWindows: "PowerShell · Windows x86_64", copy: "复制", copied: "已复制", copyLabel: "复制命令", allDownloads: "全部下载", installGuide: "安装指南",
     closingEyebrow: "A PLACE FOR EVERY LINE.", closingTitle: "为下一个想法，留一个位置。", viewGithub: "在 GitHub 查看", footer: "以 MIT 许可证开源。", backToTop: "回到顶部"
   }
 };
 
 const commands = {
-  macos: "tar -xzf inbox-macos-aarch64.tar.gz",
-  linux: "tar -xzf inbox-linux-x86_64.tar.gz",
-  windows: "Expand-Archive inbox-windows-x86_64.zip"
+  macos: "curl -fsSL https://amcones.cn/inbox-cli/install.sh | bash",
+  linux: "curl -fsSL https://amcones.cn/inbox-cli/install.sh | bash",
+  windows: "irm https://amcones.cn/inbox-cli/install.ps1 | iex"
 };
 
+let platform = "macos";
 let language = navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
 const releaseHistory = window.INBOX_RELEASES || [];
 
@@ -62,12 +63,18 @@ function applyLanguage(nextLanguage) {
   toggle.setAttribute("aria-label", language === "zh" ? "Switch to English" : "切换到中文");
   toggle.querySelector(".language-current").textContent = language === "zh" ? "中" : "EN";
   toggle.querySelector(".language-other").textContent = language === "zh" ? "EN" : "中";
+  renderInstall();
   renderVersions(releaseHistory);
 }
 
 document.querySelector(".language-toggle").addEventListener("click", () => {
   applyLanguage(language === "en" ? "zh" : "en");
 });
+
+function renderInstall() {
+  document.querySelector("#install-command").textContent = commands[platform];
+  document.querySelector("#install-shell").textContent = copy[language][platform === "windows" ? "installWindows" : "installUnix"];
+}
 
 document.querySelectorAll(".platform-tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -76,7 +83,8 @@ document.querySelectorAll(".platform-tab").forEach((tab) => {
       item.classList.toggle("active", active);
       item.setAttribute("aria-selected", String(active));
     });
-    document.querySelector("#install-command").textContent = commands[tab.dataset.platform];
+    platform = tab.dataset.platform;
+    renderInstall();
   });
 });
 
